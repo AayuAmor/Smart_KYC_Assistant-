@@ -35,6 +35,11 @@ class ChatServiceException(AppException):
         super().__init__(502, reason, "CHAT_SERVICE_ERROR")
 
 
+class OCRFailedException(AppException):
+    def __init__(self, reason: str):
+        super().__init__(422, reason, "OCR_FAILED")
+
+
 async def app_exception_handler(request: Request, exc: AppException) -> JSONResponse:
     return JSONResponse(
         status_code=exc.status_code,
