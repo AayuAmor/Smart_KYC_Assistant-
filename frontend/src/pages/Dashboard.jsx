@@ -251,7 +251,7 @@ export default function Dashboard() {
                 whileHover={{ y: -3 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => nav(a.href)}
-                className="flex flex-col items-center p-3 bg-white rounded-2xl border border-slate-100 shadow-[0_1px_3px_rgba(16,24,40,0.04)] text-center cursor-pointer transition-all hover:border-slate-200"
+                className="flex flex-col items-center p-3 wallet-card text-center cursor-pointer transition-all hover:shadow-wallet"
               >
                 <div
                   className="w-10 h-10 rounded-xl flex items-center justify-center mb-2"
@@ -272,14 +272,14 @@ export default function Dashboard() {
           className="mt-5"
         >
           <SectionLabel action="View All" onAction={() => nav('/kyc/tracking')}>Verification Progress</SectionLabel>
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_1px_3px_rgba(16,24,40,0.04)] p-4">
+          <div className="wallet-card rounded-2xl p-4">
             {verificationTimeline.map((step, i) => (
               <div key={step.label} className="flex items-start gap-3">
                 <div className="flex flex-col items-center shrink-0">
                   <div className={[
                     'w-7 h-7 rounded-full flex items-center justify-center transition-all',
                     step.done
-                      ? 'bg-primary shadow-sm shadow-primary/25'
+                      ? 'green-gradient shadow-sm'
                       : step.active
                       ? 'bg-amber-50 border-2 border-amber-400'
                       : 'bg-slate-50 border border-slate-200',
@@ -318,7 +318,7 @@ export default function Dashboard() {
           className="mt-5"
         >
           <SectionLabel>Recent Activity</SectionLabel>
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_1px_3px_rgba(16,24,40,0.04)] overflow-hidden">
+          <div className="wallet-card rounded-2xl overflow-hidden">
             {recentActivity.map((a, i) => (
               <motion.div
                 key={i}
@@ -346,29 +346,25 @@ export default function Dashboard() {
           whileHover={{ y: -2 }}
           whileTap={{ scale: 0.99 }}
           onClick={() => nav('/chat')}
-          className="mt-5 rounded-2xl p-5 cursor-pointer relative overflow-hidden"
-          style={{
-            background: 'linear-gradient(135deg, #1F2937 0%, #111827 100%)',
-            boxShadow: '0 8px 24px rgba(0,0,0,0.14)',
-          }}
+          className="mt-5 rounded-[1.5rem] p-5 cursor-pointer relative overflow-hidden wallet-card"
         >
           <div style={{
             position: 'absolute', top: -20, right: -20, width: 100, height: 100,
-            background: 'radial-gradient(circle, rgba(96,187,70,0.20) 0%, transparent 70%)',
+            background: 'radial-gradient(circle, rgba(96,187,70,0.14) 0%, transparent 70%)',
             pointerEvents: 'none',
           }} />
           <div className="flex items-center gap-4">
             <div
               className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
-              style={{ background: 'linear-gradient(135deg, #60BB46, #3A8A28)', boxShadow: '0 4px 14px rgba(96,187,70,0.40)' }}
+              style={{ background: 'linear-gradient(135deg, #60BB46, #3A8A28)', boxShadow: '0 8px 18px rgba(96,187,70,0.18)' }}
             >
               <Sparkles size={22} color="#fff" strokeWidth={2} />
             </div>
             <div className="flex-1">
-              <p className="text-[15px] font-bold text-white mb-1">AI KYC Assistant</p>
-              <p className="text-xs text-white/55 leading-relaxed">Get instant answers about your verification</p>
+              <p className="text-[15px] font-bold text-text-dark mb-1">AI KYC Assistant</p>
+              <p className="text-xs text-text-gray leading-relaxed">Get instant answers about your verification</p>
             </div>
-            <ArrowRight size={18} className="text-white/35 shrink-0" />
+            <ArrowRight size={18} className="text-slate-400 shrink-0" />
           </div>
         </motion.div>
 
