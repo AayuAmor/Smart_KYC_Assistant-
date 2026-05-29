@@ -44,6 +44,7 @@
   /* Small utilities for placeholders */
   .placeholder { padding:24px; text-align:center }
   .placeholder h1 { margin:0 0 8px 0 }
+}
 
 body {
   margin: 0;
