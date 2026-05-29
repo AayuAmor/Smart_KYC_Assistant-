@@ -163,6 +163,75 @@ export function AppHeader({ back, title, right, subtitle, logoMode = false }) {
   )
 }
 
+export function Navbar() {
+  return <AppHeader logoMode />
+}
+
+export function Alert({ type = 'info', message, className = '' }) {
+  const variants = {
+    info: {
+      wrap: 'bg-blue-50 border-blue-200 text-blue-700',
+      icon: AlertCircle,
+    },
+    success: {
+      wrap: 'bg-green-50 border-green-200 text-success',
+      icon: CheckCircle2,
+    },
+    warning: {
+      wrap: 'bg-amber-50 border-amber-200 text-amber-700',
+      icon: AlertCircle,
+    },
+    error: {
+      wrap: 'bg-red-50 border-red-200 text-error',
+      icon: AlertCircle,
+    },
+  }
+  const cfg = variants[type] || variants.info
+  const Icon = cfg.icon
+
+  return (
+    <div className={cn('flex items-start gap-3 rounded-2xl border px-4 py-3', cfg.wrap, className)}>
+      <Icon className="h-4 w-4 shrink-0 mt-0.5" />
+      <p className="text-sm font-medium leading-relaxed">{message}</p>
+    </div>
+  )
+}
+
+export function StepBar({ labels = [], current = 1, total }) {
+  const stepCount = total || labels.length
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2">
+        {labels.map((label, index) => {
+          const stepNumber = index + 1
+          const done = stepNumber < current
+          const active = stepNumber === current
+          return (
+            <div key={label} className="flex items-center flex-1 last:flex-none">
+              <div className="flex flex-col items-center w-full">
+                <div className={cn(
+                  'w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all',
+                  done && 'bg-primary text-white shadow-sm',
+                  active && 'bg-primary text-white ring-4 ring-primary/15',
+                  !done && !active && 'bg-slate-50 text-slate-400 border border-slate-200',
+                )}>
+                  {done ? <CheckCircle2 className="h-3.5 w-3.5" /> : stepNumber}
+                </div>
+                <span className={cn('text-[10px] mt-1 font-semibold whitespace-nowrap', active ? 'text-primary' : done ? 'text-primary/70' : 'text-slate-400')}>
+                  {label}
+                </span>
+              </div>
+              {index < stepCount - 1 && (
+                <div className={cn('flex-1 h-0.5 mx-1 mb-4 rounded-full', done ? 'bg-primary' : 'bg-slate-200')} />
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 export function StepHeader({ steps, current, onBack, title }) {
   return (
     <div className="bg-white border-b border-slate-100 px-4 pt-4 pb-0 sticky top-0 z-20">
@@ -214,9 +283,12 @@ export function TopBar({ title, back, right }) {
 
 const badgeMap = {
   green:  'bg-primary/10 text-primary-dark',
+  mint:   'bg-primary/10 text-primary-dark',
+  amber:  'bg-amber-50 text-amber-700',
   orange: 'bg-amber-50 text-amber-700',
   red:    'bg-red-50 text-error',
   gray:   'bg-slate-100 text-text-gray',
+  muted:  'bg-slate-100 text-text-gray',
   blue:   'bg-blue-50 text-blue-600',
 }
 
