@@ -43,6 +43,7 @@ class OCRService:
         full_name = result.get("full_name")
         dob = result.get("dob")
         id_number = result.get("id_number")
+        gender = result.get("gender")
         permanent_province = result.get("permanent_province")
         permanent_district = result.get("permanent_district")
         permanent_municipality = result.get("permanent_municipality")
@@ -101,6 +102,7 @@ class OCRService:
             full_name=full_name,
             dob=dob,
             id_number=id_number,
+            gender=gender,
             address=address,
             issued_district=issued_district,
             issued_date=issued_date,

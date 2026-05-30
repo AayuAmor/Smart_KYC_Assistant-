@@ -156,6 +156,27 @@ export default function KYCForm() {
   const [autoFilled, setAutoFilled] = useState(new Set());
   const [showBanner, setShowBanner] = useState(false);
   const ocrApplied = useRef(false);
+  const fieldRefs = useRef({});
+
+  const REQUIRED_FIELDS = [
+    "full_name", "dob", "gender", "id_number",
+    "permanent_province", "permanent_district", "permanent_municipality",
+    "permanent_ward", "permanent_tole", "phone",
+  ];
+
+  function scrollToFirstError(errs) {
+    const order = [
+      "full_name", "dob", "id_number",
+      "permanent_province", "permanent_district", "permanent_municipality",
+      "permanent_ward", "permanent_tole", "phone",
+    ];
+    for (const field of order) {
+      if (errs[field] && fieldRefs.current[field]) {
+        fieldRefs.current[field].scrollIntoView({ behavior: "smooth", block: "center" });
+        break;
+      }
+    }
+  }
 
   useEffect(() => {
     if (!ocrResult || ocrApplied.current) return;
@@ -168,6 +189,7 @@ export default function KYCForm() {
       full_name:               ocrResult.full_name || ocrResult.name,
       dob:                     ocrResult.dob,
       id_number:               ocrResult.id_number,
+      gender:                  ocrResult.gender,
       permanent_province:      ocrResult.permanent_province,
       permanent_district:      ocrResult.permanent_district,
       permanent_municipality:  ocrResult.permanent_municipality,
@@ -180,11 +202,32 @@ export default function KYCForm() {
       }
     }
 
+    if (!ocrResult.permanent_province && ocrResult.address) {
+      const p = parseOCRAddress(ocrResult.address);
+      for (const [k, v] of Object.entries({
+        permanent_province:     p.province,
+        permanent_district:     p.district,
+        permanent_municipality: p.municipality,
+        permanent_ward:         p.ward,
+        permanent_tole:         p.tole,
+      })) {
+        if (v && !updates[k]) { updates[k] = v; filled.add(k); }
+      }
+    }
+
     if (Object.keys(updates).length) {
-      setFormData({ ...formData, ...updates });
+      const merged = { ...formData, ...updates };
+      setFormData(merged);
       setAutoFilled(filled);
       setShowBanner(true);
       setTimeout(() => setAutoFilled(new Set()), 4500);
+      setTimeout(() => {
+        const firstUnfilled = REQUIRED_FIELDS.find((f) => !merged[f] || merged[f] === "");
+        if (firstUnfilled && fieldRefs.current[firstUnfilled]) {
+          fieldRefs.current[firstUnfilled].scrollIntoView({ behavior: "smooth", block: "center" });
+          fieldRefs.current[firstUnfilled].querySelector("input, select")?.focus();
+        }
+      }, 600);
     }
   }, [ocrResult]);
 
@@ -222,6 +265,7 @@ export default function KYCForm() {
     const e = validate(formData);
     if (Object.keys(e).length) {
       setErrors(e);
+      setTimeout(() => scrollToFirstError(e), 50);
       return;
     }
     setStep("review");
@@ -463,33 +507,37 @@ export default function KYCForm() {
           <div className="px-5 pt-6 pb-5">
             <SectionTitle title="Personal Information" />
             <div className="space-y-4">
-              <FormField
-                label="Full Name"
-                error={errors.full_name}
-                autoFilled={autoFilled.has("full_name")}
-              >
-                <input
-                  type="text"
-                  value={formData.full_name}
-                  onChange={(e) => handle("full_name", e.target.value)}
-                  placeholder="As printed on your document"
-                  className={ic("full_name")}
-                />
-              </FormField>
-
-              <div className="grid grid-cols-2 gap-3">
+              <div ref={(el) => (fieldRefs.current["full_name"] = el)}>
                 <FormField
-                  label="Date of Birth"
-                  error={errors.dob}
-                  autoFilled={autoFilled.has("dob")}
+                  label="Full Name"
+                  error={errors.full_name}
+                  autoFilled={autoFilled.has("full_name")}
                 >
                   <input
-                    type="date"
-                    value={formData.dob}
-                    onChange={(e) => handle("dob", e.target.value)}
-                    className={ic("dob")}
+                    type="text"
+                    value={formData.full_name}
+                    onChange={(e) => handle("full_name", e.target.value)}
+                    placeholder="As printed on your document"
+                    className={ic("full_name")}
                   />
                 </FormField>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div ref={(el) => (fieldRefs.current["dob"] = el)}>
+                  <FormField
+                    label="Date of Birth"
+                    error={errors.dob}
+                    autoFilled={autoFilled.has("dob")}
+                  >
+                    <input
+                      type="date"
+                      value={formData.dob}
+                      onChange={(e) => handle("dob", e.target.value)}
+                      className={ic("dob")}
+                    />
+                  </FormField>
+                </div>
 
                 <FormField label="Gender">
                   <select
@@ -505,19 +553,21 @@ export default function KYCForm() {
                 </FormField>
               </div>
 
-              <FormField
-                label="Citizenship Number"
-                error={errors.id_number}
-                autoFilled={autoFilled.has("id_number")}
-              >
-                <input
-                  type="text"
-                  value={formData.id_number}
-                  onChange={(e) => handle("id_number", e.target.value)}
-                  placeholder="e.g. 12-01-76-00012"
-                  className={ic("id_number")}
-                />
-              </FormField>
+              <div ref={(el) => (fieldRefs.current["id_number"] = el)}>
+                <FormField
+                  label="Citizenship Number"
+                  error={errors.id_number}
+                  autoFilled={autoFilled.has("id_number")}
+                >
+                  <input
+                    type="text"
+                    value={formData.id_number}
+                    onChange={(e) => handle("id_number", e.target.value)}
+                    placeholder="e.g. 12-01-76-00012"
+                    className={ic("id_number")}
+                  />
+                </FormField>
+              </div>
             </div>
           </div>
 
@@ -537,79 +587,89 @@ export default function KYCForm() {
             )}
 
             <div className="space-y-4">
-              <SearchableDropdown
-                label="Province"
-                value={formData.permanent_province}
-                options={PROVINCES}
-                onChange={(v) => handle("permanent_province", v)}
-                placeholder="Select Province"
-                searchPlaceholder="Search province..."
-                error={errors.permanent_province}
-                autoFilled={autoFilled.has("permanent_province")}
-              />
+              <div ref={(el) => (fieldRefs.current["permanent_province"] = el)}>
+                <SearchableDropdown
+                  label="Province"
+                  value={formData.permanent_province}
+                  options={PROVINCES}
+                  onChange={(v) => handle("permanent_province", v)}
+                  placeholder="Select Province"
+                  searchPlaceholder="Search province..."
+                  error={errors.permanent_province}
+                  autoFilled={autoFilled.has("permanent_province")}
+                />
+              </div>
 
-              <SearchableDropdown
-                label="District"
-                value={formData.permanent_district}
-                options={getDistricts(formData.permanent_province)}
-                onChange={(v) => handle("permanent_district", v)}
-                placeholder={
-                  formData.permanent_province
-                    ? "Select District"
-                    : "Select a province first"
-                }
-                searchPlaceholder="Search district..."
-                error={errors.permanent_district}
-                disabled={!formData.permanent_province}
-                autoFilled={autoFilled.has("permanent_district")}
-              />
+              <div ref={(el) => (fieldRefs.current["permanent_district"] = el)}>
+                <SearchableDropdown
+                  label="District"
+                  value={formData.permanent_district}
+                  options={getDistricts(formData.permanent_province)}
+                  onChange={(v) => handle("permanent_district", v)}
+                  placeholder={
+                    formData.permanent_province
+                      ? "Select District"
+                      : "Select a province first"
+                  }
+                  searchPlaceholder="Search district..."
+                  error={errors.permanent_district}
+                  disabled={!formData.permanent_province}
+                  autoFilled={autoFilled.has("permanent_district")}
+                />
+              </div>
 
-              <SearchableDropdown
-                label="Municipality / Rural Municipality"
-                value={formData.permanent_municipality}
-                options={getMunicipalities(formData.permanent_district)}
-                onChange={(v) => handle("permanent_municipality", v)}
-                placeholder={
-                  formData.permanent_district
-                    ? "Select Municipality"
-                    : "Select a district first"
-                }
-                searchPlaceholder="Search municipality..."
-                error={errors.permanent_municipality}
-                disabled={!formData.permanent_district}
-                autoFilled={autoFilled.has("permanent_municipality")}
-              />
+              <div ref={(el) => (fieldRefs.current["permanent_municipality"] = el)}>
+                <SearchableDropdown
+                  label="Municipality / Rural Municipality"
+                  value={formData.permanent_municipality}
+                  options={getMunicipalities(formData.permanent_district)}
+                  onChange={(v) => handle("permanent_municipality", v)}
+                  placeholder={
+                    formData.permanent_district
+                      ? "Select Municipality"
+                      : "Select a district first"
+                  }
+                  searchPlaceholder="Search municipality..."
+                  error={errors.permanent_municipality}
+                  disabled={!formData.permanent_district}
+                  autoFilled={autoFilled.has("permanent_municipality")}
+                />
+              </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <FormField
-                  label="Ward No"
-                  error={errors.permanent_ward}
-                  autoFilled={autoFilled.has("permanent_ward")}
-                >
-                  <input
-                    type="number"
-                    min="1"
-                    max="35"
-                    value={formData.permanent_ward}
-                    onChange={(e) => handle("permanent_ward", e.target.value)}
-                    placeholder="e.g. 10"
-                    className={ic("permanent_ward")}
-                  />
-                </FormField>
+                <div ref={(el) => (fieldRefs.current["permanent_ward"] = el)}>
+                  <FormField
+                    label="Ward No"
+                    error={errors.permanent_ward}
+                    autoFilled={autoFilled.has("permanent_ward")}
+                  >
+                    <input
+                      type="number"
+                      min="1"
+                      max="35"
+                      value={formData.permanent_ward}
+                      onChange={(e) => handle("permanent_ward", e.target.value)}
+                      placeholder="e.g. 10"
+                      className={ic("permanent_ward")}
+                    />
+                  </FormField>
+                </div>
 
-                <FormField
-                  label="Tole / Street"
-                  error={errors.permanent_tole}
-                  autoFilled={autoFilled.has("permanent_tole")}
-                >
-                  <input
-                    type="text"
-                    value={formData.permanent_tole}
-                    onChange={(e) => handle("permanent_tole", e.target.value)}
-                    placeholder="e.g. Baneswor"
-                    className={ic("permanent_tole")}
-                  />
-                </FormField>
+                <div ref={(el) => (fieldRefs.current["permanent_tole"] = el)}>
+                  <FormField
+                    label="Tole / Street"
+                    error={errors.permanent_tole}
+                    autoFilled={autoFilled.has("permanent_tole")}
+                  >
+                    <input
+                      type="text"
+                      value={formData.permanent_tole}
+                      onChange={(e) => handle("permanent_tole", e.target.value)}
+                      placeholder="e.g. Baneswor"
+                      className={ic("permanent_tole")}
+                    />
+                  </FormField>
+                </div>
               </div>
             </div>
           </div>
@@ -750,27 +810,29 @@ export default function KYCForm() {
           <div className="px-5 pt-6 pb-5">
             <SectionTitle title="Contact Information" />
             <div className="space-y-4">
-              <FormField label="Phone Number" error={errors.phone}>
-                <div className="flex gap-2">
-                  <div className="flex items-center px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-text-gray shrink-0 h-[46px]">
-                    +977
+              <div ref={(el) => (fieldRefs.current["phone"] = el)}>
+                <FormField label="Phone Number" error={errors.phone}>
+                  <div className="flex gap-2">
+                    <div className="flex items-center px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-text-gray shrink-0 h-[46px]">
+                      +977
+                    </div>
+                    <input
+                      type="tel"
+                      value={formData.phone}
+                      onChange={(e) => handle("phone", e.target.value)}
+                      placeholder="98XXXXXXXX"
+                      className={[
+                        "flex-1 bg-white border rounded-xl px-4 py-3 text-sm text-text-dark",
+                        "placeholder:text-slate-400 outline-none transition-all duration-200",
+                        "focus:ring-2 focus:ring-primary/15",
+                        errors.phone
+                          ? "border-error bg-red-50/30 focus:border-error"
+                          : "border-slate-200 focus:border-primary hover:border-slate-300",
+                      ].join(" ")}
+                    />
                   </div>
-                  <input
-                    type="tel"
-                    value={formData.phone}
-                    onChange={(e) => handle("phone", e.target.value)}
-                    placeholder="98XXXXXXXX"
-                    className={[
-                      "flex-1 bg-white border rounded-xl px-4 py-3 text-sm text-text-dark",
-                      "placeholder:text-slate-400 outline-none transition-all duration-200",
-                      "focus:ring-2 focus:ring-primary/15",
-                      errors.phone
-                        ? "border-error bg-red-50/30 focus:border-error"
-                        : "border-slate-200 focus:border-primary hover:border-slate-300",
-                    ].join(" ")}
-                  />
-                </div>
-              </FormField>
+                </FormField>
+              </div>
 
               <FormField label="Email Address" error={errors.email} optional>
                 <input

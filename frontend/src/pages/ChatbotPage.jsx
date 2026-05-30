@@ -15,15 +15,6 @@ import { sendChatMessage } from "../services/api.js";
 import { BottomNav } from "../components/UI.jsx";
 import { useKYCStore } from "../store/kycStore.js";
 
-const QUICK = [
-  "Why was my KYC rejected?",
-  "What documents are accepted?",
-  "How long does verification take?",
-  "My upload failed",
-  "Can I use my passport?",
-  "How do I resubmit?",
-];
-
 const statusConfig = {
   pending: { label: "Pending", Icon: Clock, color: "#9CA3AF", bg: "#F3F4F6" },
   submitted: {
@@ -65,36 +56,72 @@ export default function ChatbotPage() {
   const [loading, setLoading] = useState(false);
   const bottomRef = useRef();
   const inputRef = useRef();
+  const timeoutRef = useRef(null);
+  const rejectionShown = useRef(false);
+
+  const QUICK =
+    kycStatus === "rejected"
+      ? ["Why was I rejected?", "How do I fix this?", "Can I resubmit?", "What documents are valid?"]
+      : kycStatus === "under_review"
+      ? ["How long does review take?", "What happens next?", "Can I edit my details?", "Who reviews my KYC?"]
+      : kycStatus === "approved"
+      ? ["What can I do now?", "Is my data secure?", "How do I update my KYC?", "Download certificate"]
+      : ["What documents are accepted?", "How long does verification take?", "Can I use my passport?", "How do I upload correctly?"];
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
 
+  useEffect(() => {
+    if (kycStatus === "rejected" && rejectionReason && !rejectionShown.current) {
+      rejectionShown.current = true;
+      setTimeout(() => {
+        setMessages((m) => [
+          ...m,
+          {
+            role: "bot",
+            text: `I can see your KYC was rejected. Reason: "${rejectionReason}". Would you like me to explain what went wrong and how to fix it?`,
+          },
+        ]);
+      }, 0);
+    }
+  }, [kycStatus, rejectionReason]);
+
   async function send(q) {
     const question = q || input.trim();
-    if (!question) return;
+    if (!question || loading) return;
     setInput("");
     setMessages((m) => [...m, { role: "user", text: question }]);
     setLoading(true);
+    timeoutRef.current = setTimeout(() => {
+      setMessages((m) => [...m, { role: "bot", text: "Taking a bit longer than usual... please wait." }]);
+    }, 8000);
     try {
+      const MOCK = import.meta.env.VITE_ENABLE_API !== "true";
+      if (MOCK) {
+        await new Promise((r) => setTimeout(r, 900));
+        setMessages((m) => [...m, { role: "bot", text: "This is a mock response. Enable the real API to use GPT-4o powered chat." }]);
+        return;
+      }
+      const { formData } = useKYCStore.getState();
       const ctx = {
         kyc_id: kycId,
         status: kycStatus,
         rejection_reason: rejectionReason,
+        document_type: formData?.document_type,
+        full_name: formData?.full_name,
       };
       const data = await sendChatMessage(question, ctx);
-      if (!data?.answer)
-        throw new Error("Chat response did not include an answer");
-      const answer = data.answer;
-      setMessages((m) => [...m, { role: "bot", text: answer }]);
+      if (!data?.answer) throw new Error("No answer received");
+      setMessages((m) => [...m, { role: "bot", text: data.answer }]);
     } catch (error) {
-      console.error(error);
       const message =
         typeof error === "string"
           ? error
-          : error?.message || "Chat request failed";
+          : error?.message || "Something went wrong. Please try again.";
       setMessages((m) => [...m, { role: "bot", text: message }]);
     } finally {
+      clearTimeout(timeoutRef.current);
       setLoading(false);
       inputRef.current?.focus();
     }

@@ -65,6 +65,7 @@ export default function OCRProcessing() {
           full_name:              merged.full_name || "",
           dob:                    merged.dob || "",
           id_number:              merged.id_number || "",
+          gender:                 merged.gender || "",
           address:                merged.address || "",
           permanent_province:     merged.permanent_province || "",
           permanent_district:     merged.permanent_district || "",

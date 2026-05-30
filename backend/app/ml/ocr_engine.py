@@ -32,6 +32,7 @@ Return ONLY valid JSON with exactly these keys (null if not found):
   "full_name": "Read the ENGLISH/ROMAN script name directly. Do NOT transliterate from Devanagari.",
   "dob": "YYYY-MM-DD or null",
   "id_number": "Document number or null",
+  "gender": "Male | Female | Other | null",
   "permanent_province": "Exact value from list or null",
   "permanent_district": "Exact value from list or null",
   "permanent_municipality": "Full name with Municipality/Rural Municipality suffix or null",
@@ -48,6 +49,7 @@ Rules:
 - id_number for citizenship: XX-XX-XX-XXXXX
 - id_number for passport: 2 letters + 7 digits
 - All dates YYYY-MM-DD
+- gender: read from the document. Nepali citizenship cards say "लिङ्ग" — पुरुष means Male, महिला means Female. Return exactly "Male", "Female", or "Other".
 - confidence: 0.95 clear, 0.70 readable, 0.40 blurry
 - Return ONLY the JSON object, no markdown, no explanation
 """
@@ -67,6 +69,7 @@ Return ONLY valid JSON with exactly these keys (null if not found):
   "full_name": "Read directly from BACK side English text. Do NOT guess or transliterate.",
   "dob": "YYYY-MM-DD or null",
   "id_number": "Document number or null",
+  "gender": "Male | Female | Other | null",
   "permanent_province": "Exact value from list or null",
   "permanent_district": "Exact value from list or null",
   "permanent_municipality": "Full name with Municipality/Rural Municipality suffix or null",
@@ -82,6 +85,7 @@ Rules:
 - permanent_district must be one of: {json.dumps(DISTRICTS)}
 - id_number for citizenship: XX-XX-XX-XXXXX
 - All dates YYYY-MM-DD
+- gender: read from the document. Nepali citizenship cards say "लिङ्ग" — पुरुष means Male, महिला means Female. Return exactly "Male", "Female", or "Other".
 - confidence: 0.95 clear, 0.70 readable, 0.40 blurry
 - Return ONLY the JSON object, no markdown, no explanation
 """
