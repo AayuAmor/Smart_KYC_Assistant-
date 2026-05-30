@@ -155,6 +155,7 @@ export default function KYCForm() {
   const [step, setStep] = useState("form");
   const [autoFilled, setAutoFilled] = useState(new Set());
   const [showBanner, setShowBanner] = useState(false);
+  const [needsFill, setNeedsFill] = useState(new Set());
   const ocrApplied = useRef(false);
   const fieldRefs = useRef({});
 
@@ -221,11 +222,14 @@ export default function KYCForm() {
       setAutoFilled(filled);
       setShowBanner(true);
       setTimeout(() => setAutoFilled(new Set()), 4500);
+      const REQUIRED = ["full_name","dob","gender","id_number","permanent_province","permanent_district","permanent_municipality","permanent_ward","permanent_tole","phone"];
+      const unfilled = new Set(REQUIRED.filter((f) => !merged[f] || merged[f] === ""));
+      setNeedsFill(unfilled);
       setTimeout(() => {
-        const firstUnfilled = REQUIRED_FIELDS.find((f) => !merged[f] || merged[f] === "");
+        const firstUnfilled = REQUIRED.find((f) => unfilled.has(f));
         if (firstUnfilled && fieldRefs.current[firstUnfilled]) {
           fieldRefs.current[firstUnfilled].scrollIntoView({ behavior: "smooth", block: "center" });
-          fieldRefs.current[firstUnfilled].querySelector("input, select")?.focus();
+          fieldRefs.current[firstUnfilled].querySelector("input,select")?.focus();
         }
       }, 600);
     }
@@ -233,6 +237,9 @@ export default function KYCForm() {
 
   function handle(field, val) {
     const patch = { [field]: val };
+    if (needsFill.has(field)) {
+      setNeedsFill((prev) => { const n = new Set(prev); n.delete(field); return n; });
+    }
     if (field === "permanent_province") {
       patch.permanent_district = "";
       patch.permanent_municipality = "";
@@ -331,7 +338,9 @@ export default function KYCForm() {
         ? "border-error focus:border-error bg-red-50/30"
         : autoFilled.has(field)
           ? "border-primary/50 bg-primary/[0.03] focus:border-primary autofill-pop"
-          : "border-slate-200 focus:border-primary hover:border-slate-300",
+          : needsFill.has(field)
+            ? "border-amber-400 bg-amber-50/40 focus:border-amber-500 focus:ring-amber-100"
+            : "border-slate-200 focus:border-primary hover:border-slate-300",
     ].join(" ");
 
   const sameAsPerm = formData.current_same_as_permanent;

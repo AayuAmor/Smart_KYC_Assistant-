@@ -24,7 +24,7 @@ const quickActions = [
 ]
 
 const statusMap = {
-  pending:      { label: 'Pending',      badgeBg: '#FFF7ED', badgeText: '#C2410C', pct: 20, desc: 'Upload your documents to begin identity verification.' },
+  pending:      { label: 'Pending',      badgeBg: '#FFF7ED', badgeText: '#C2410C', pct: 0, desc: 'Upload your documents to begin identity verification.' },
   submitted:    { label: 'Submitted',    badgeBg: '#EFF6FF', badgeText: '#1D4ED8', pct: 50, desc: 'Application received. Processing will begin shortly.' },
   under_review: { label: 'Under Review', badgeBg: '#FFF7ED', badgeText: '#C2410C', pct: 70, desc: 'Our team is verifying your documents. Hang tight!' },
   approved:     { label: 'Approved',     badgeBg: '#EBF7E6', badgeText: '#3A8A28', pct: 100, desc: 'Your KYC is fully verified. You\'re all set!' },
