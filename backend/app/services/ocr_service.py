@@ -85,23 +85,28 @@ class OCRService:
         fields = _extract_fields(raw_text, extractors)
         field_scores = score_extracted_fields(fields)
         overall = compute_overall_confidence(field_scores)
-        doc_record = Document(
-            kyc_id=kyc_id or uuid.uuid4(),
-            side=side,
-            file_path=file_path,
-            original_filename=file.filename or "upload",
-            mime_type=file.content_type or "image/jpeg",
-            file_size_bytes=file_size,
-            ocr_raw_text=raw_text,
-            detected_doc_type=doc_type,
-            classifier_confidence=classifier_confidence,
-        )
-        self.db.add(doc_record)
-        await self.db.flush()
-        await self.db.refresh(doc_record)
-        logger.info("OCR complete doc_id={} doc_type={} ocr_conf={:.2f} overall={:.2f}", doc_record.id, doc_type, ocr_confidence, overall)
+        doc_id = None
+        if kyc_id:
+            doc_record = Document(
+                kyc_id=kyc_id,
+                side=side,
+                file_path=file_path,
+                original_filename=file.filename or "upload",
+                mime_type=file.content_type or "image/jpeg",
+                file_size_bytes=file_size,
+                ocr_raw_text=raw_text,
+                detected_doc_type=doc_type,
+                classifier_confidence=classifier_confidence,
+            )
+            self.db.add(doc_record)
+            await self.db.flush()
+            await self.db.refresh(doc_record)
+            doc_id = doc_record.id
+            logger.info("OCR complete doc_id={} doc_type={} ocr_conf={:.2f} overall={:.2f}", doc_record.id, doc_type, ocr_confidence, overall)
+        else:
+            logger.info("OCR complete doc_id=<not persisted> doc_type={} ocr_conf={:.2f} overall={:.2f}", doc_type, ocr_confidence, overall)
         return OCRUploadResponse(
-            document_id=doc_record.id,
+            document_id=doc_id or uuid.uuid4(),
             detected_doc_type=doc_type,
             classifier_confidence=classifier_confidence,
             ocr_confidence=ocr_confidence,

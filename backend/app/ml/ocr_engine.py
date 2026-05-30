@@ -3,6 +3,14 @@ import pytesseract
 from loguru import logger
 from app.core.config import settings
 
+try:
+    import easyocr as _easyocr_mod
+    _EASYOCR_AVAILABLE = True
+except ImportError:
+    _easyocr_mod = None
+    _EASYOCR_AVAILABLE = False
+    logger.warning("easyocr not installed — using Tesseract only. Run: pip install easyocr==1.7.2")
+
 
 class OCREngine:
     def __init__(self):
@@ -10,14 +18,15 @@ class OCREngine:
         pytesseract.pytesseract.tesseract_cmd = settings.TESSERACT_CMD
 
     def extract_text(self, image: np.ndarray) -> tuple[str, float]:
-        try:
-            text, confidence = self._run_easyocr(image)
-            if confidence >= settings.OCR_CONFIDENCE_THRESHOLD:
-                logger.info("EasyOCR succeeded confidence={:.2f}", confidence)
-                return text, confidence
-            logger.warning("EasyOCR low confidence={:.2f}, falling back to Tesseract", confidence)
-        except Exception:
-            logger.exception("EasyOCR failed, falling back to Tesseract")
+        if _EASYOCR_AVAILABLE:
+            try:
+                text, confidence = self._run_easyocr(image)
+                if confidence >= settings.OCR_CONFIDENCE_THRESHOLD:
+                    logger.info("EasyOCR succeeded confidence={:.2f}", confidence)
+                    return text, confidence
+                logger.warning("EasyOCR low confidence={:.2f}, falling back to Tesseract", confidence)
+            except Exception:
+                logger.exception("EasyOCR failed, falling back to Tesseract")
         return self._run_tesseract(image)
 
     def _run_easyocr(self, image: np.ndarray) -> tuple[str, float]:
@@ -51,7 +60,6 @@ class OCREngine:
 
     def _get_reader(self):
         if self._reader is None:
-            import easyocr
-            self._reader = easyocr.Reader(["en", "ne"], gpu=False, verbose=False)
+            self._reader = _easyocr_mod.Reader(["en", "ne"], gpu=False, verbose=False)
             logger.info("EasyOCR reader initialised")
         return self._reader
