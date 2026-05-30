@@ -57,6 +57,24 @@ export default function OCRProcessing() {
           throw new Error(err.detail || `Upload failed: ${res.status}`);
         }
         const merged = await res.json();
+
+        const SELECTED_TYPE = formData.document_type || "citizenship";
+        const DETECTED_TYPE = merged.detected_doc_type || merged.doc_type;
+        const TYPE_MAP = {
+          citizenship: ["citizenship"],
+          license:     ["license", "driving_license", "driving license"],
+          passport:    ["passport"],
+          voter_id:    ["voter_id", "voter id", "voterid"],
+        };
+        const validTypes = TYPE_MAP[SELECTED_TYPE] || [SELECTED_TYPE];
+        const typeMatch = !DETECTED_TYPE || DETECTED_TYPE === "unknown" || validTypes.some((t) => DETECTED_TYPE.toLowerCase().includes(t.toLowerCase()));
+        if (!typeMatch) {
+          const LABELS = { citizenship: "Citizenship", license: "Driving License", passport: "Passport", voter_id: "Voter ID" };
+          setError(`Wrong document detected. You selected "${LABELS[SELECTED_TYPE] || SELECTED_TYPE}" but the uploaded image appears to be a "${DETECTED_TYPE}". Please go back and upload the correct document.`);
+          clearInterval(interval);
+          return;
+        }
+
         const conf = merged.overall_confidence ?? merged.ocr_confidence ?? null;
         setOcrConfidence(typeof conf === "number" ? Math.round(conf * 100) : null);
         setOcrResult(merged);
@@ -92,14 +110,29 @@ export default function OCRProcessing() {
   const pct = done ? 100 : Math.round(((stepIdx + 1) / STEPS.length) * 100);
   const docPreview = docPreviews?.front || null;
 
+  if (error) {
+    return (
+      <div className="page-root flex flex-col items-center justify-center px-6 py-10">
+        <div className="w-full max-w-sm text-center space-y-4">
+          <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center mx-auto">
+            <span className="text-2xl">⚠️</span>
+          </div>
+          <h2 className="text-xl font-black text-text-dark">Processing Failed</h2>
+          <p className="text-sm text-text-gray leading-relaxed">{error}</p>
+          <button
+            onClick={() => nav("/kyc/upload")}
+            className="w-full py-3 rounded-xl bg-primary text-white font-semibold text-sm"
+          >
+            Go Back & Re-upload
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="page-root flex flex-col items-center justify-center px-6 py-10">
       <div className="w-full max-w-sm">
-        {error && (
-          <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {error}
-          </div>
-        )}
 
         {docPreview && (
           <motion.div
