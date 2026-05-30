@@ -43,10 +43,13 @@ export default function OCRProcessing() {
           ? (await new Promise(r => setTimeout(r, 3200)), MOCK_OCR)
           : await uploadDocument(docFile, 'front')
       } catch { result = MOCK_OCR }
-      setOcrResult(result)
+      setOcrResult({
+        ...result,
+        confidence: result.overall_confidence ?? result.confidence ?? 0.9,
+      })
       setFormData({
         ...formData,
-        full_name: result.name || '',
+        full_name: result.full_name || result.name || '',
         dob: result.dob || '',
         id_number: result.id_number || '',
         address: result.address || '',
