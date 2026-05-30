@@ -1,4 +1,6 @@
+import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { getKYCStatus } from '../services/api.js'
 import { motion } from 'framer-motion'
 import {
   CheckCircle2, Clock, Search, ShieldCheck, Upload,
@@ -27,7 +29,26 @@ const statusMap = {
 
 export default function KYCTracking() {
   const nav = useNavigate()
-  const { kycId, kycStatus, rejectionReason } = useKYCStore()
+  const { kycId, kycStatus, rejectionReason, setKycStatus } = useKYCStore()
+
+  const MOCK = import.meta.env.VITE_ENABLE_API !== 'true'
+
+  useEffect(() => {
+    if (MOCK || !kycId) return
+    const poll = setInterval(async () => {
+      try {
+        const result = await getKYCStatus(kycId)
+        setKycStatus(result.status, result.rejection_reason)
+        if (result.status === 'approved' || result.status === 'rejected') {
+          clearInterval(poll)
+          if (result.status === 'rejected') nav('/kyc/rejected')
+        }
+      } catch {
+        clearInterval(poll)
+      }
+    }, 4000)
+    return () => clearInterval(poll)
+  }, [kycId, MOCK])
   const stageIdx = STATUS_STAGE[kycStatus] ?? 0
   const st = statusMap[kycStatus] || statusMap.pending
 

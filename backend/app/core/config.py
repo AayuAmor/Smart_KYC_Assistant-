@@ -18,8 +18,8 @@ class Settings(BaseSettings):
     MAX_UPLOAD_SIZE_MB: int = 10
     ALLOWED_EXTENSIONS: str = "jpg,jpeg,png,pdf"
 
-    GEMINI_API_KEY: str = ""
-    GEMINI_MODEL: str = "gemini-1.5-flash"
+    OPENAI_API_KEY: str = ""
+    OPENAI_MODEL: str = "gpt-4o"
 
     CORS_ORIGINS: str = "http://localhost:5173"
 

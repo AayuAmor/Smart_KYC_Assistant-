@@ -1,4 +1,5 @@
 from loguru import logger
+from openai import OpenAI
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.models.chat import ChatMessage
 from app.core.config import settings
@@ -21,15 +22,19 @@ class ChatService:
         if not question.strip():
             raise ChatServiceException("Question cannot be empty")
         try:
-            import google.generativeai as genai
-            genai.configure(api_key=settings.GEMINI_API_KEY)
-            model = genai.GenerativeModel(settings.GEMINI_MODEL)
+            client = OpenAI(api_key=settings.OPENAI_API_KEY)
             context_block = f"\nUser KYC context: {kyc_context}" if kyc_context else ""
-            prompt = f"{SYSTEM_PROMPT}{context_block}\n\nUser: {question}"
-            response = model.generate_content(prompt)
-            answer = response.text.strip()
+            response = client.chat.completions.create(
+                model=settings.OPENAI_MODEL,
+                messages=[
+                    {"role": "system", "content": SYSTEM_PROMPT + context_block},
+                    {"role": "user", "content": question},
+                ],
+                max_tokens=500,
+            )
+            answer = response.choices[0].message.content.strip()
         except Exception as e:
-            logger.exception("Gemini API call failed")
+            logger.exception("OpenAI API call failed")
             raise ChatServiceException(str(e))
         await self._persist(question, answer)
         return answer

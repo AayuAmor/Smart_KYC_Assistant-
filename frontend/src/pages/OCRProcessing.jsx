@@ -41,7 +41,7 @@ export default function OCRProcessing() {
       try {
         result = MOCK
           ? (await new Promise(r => setTimeout(r, 3200)), MOCK_OCR)
-          : await uploadDocument(docFile)
+          : await uploadDocument(docFile, 'front')
       } catch { result = MOCK_OCR }
       setOcrResult(result)
       setFormData({
