@@ -6,53 +6,84 @@ from openai import OpenAI
 from app.core.config import settings
 
 PROVINCES = [
-    "Koshi Province", "Madhesh Province", "Bagmati Province",
-    "Gandaki Province", "Lumbini Province", "Karnali Province",
-    "Sudurpashchim Province",
+    "Koshi Province","Madhesh Province","Bagmati Province","Gandaki Province",
+    "Lumbini Province","Karnali Province","Sudurpashchim Province",
 ]
 
 DISTRICTS = [
-    "Bhojpur","Dhankuta","Ilam","Jhapa","Khotang","Morang","Okhaldhunga",
-    "Panchthar","Sankhuwasabha","Solukhumbu","Sunsari","Taplejung","Tehrathum","Udayapur",
+    "Bhojpur","Dhankuta","Ilam","Jhapa","Khotang","Morang","Okhaldhunga","Panchthar",
+    "Sankhuwasabha","Solukhumbu","Sunsari","Taplejung","Tehrathum","Udayapur",
     "Bara","Dhanusha","Mahottari","Parsa","Rautahat","Saptari","Sarlahi","Siraha",
     "Bhaktapur","Chitwan","Dhading","Dolakha","Kathmandu","Kavrepalanchok","Lalitpur",
     "Makwanpur","Nuwakot","Ramechhap","Rasuwa","Sindhuli","Sindhupalchok",
     "Baglung","Gorkha","Kaski","Lamjung","Manang","Mustang","Myagdi","Nawalpur",
-    "Parbat","Syangja","Tanahun",
-    "Arghakhanchi","Banke","Bardiya","Dang","Gulmi","Kapilvastu","Nawalparasi West",
-    "Palpa","Pyuthan","Rolpa","Rukum East","Rupandehi",
+    "Parbat","Syangja","Tanahun","Arghakhanchi","Banke","Bardiya","Dang","Gulmi",
+    "Kapilvastu","Nawalparasi West","Palpa","Pyuthan","Rolpa","Rukum East","Rupandehi",
     "Dailekh","Dolpa","Humla","Jajarkot","Jumla","Kalikot","Mugu","Rukum West","Salyan","Surkhet",
     "Achham","Baitadi","Bajhang","Bajura","Dadeldhura","Darchula","Doti","Kailali","Kanchanpur",
 ]
 
-EXTRACTION_PROMPT = f"""You are a KYC document field extraction engine for Nepal.
-Analyze this document image and extract fields into a JSON object.
+SINGLE_PROMPT = f"""You are a KYC document OCR engine for Nepal.
+Analyze this document image and extract all visible fields.
 
-Return ONLY valid JSON with exactly these keys (use null if not found):
+Return ONLY valid JSON with exactly these keys (null if not found):
 {{
   "doc_type": "citizenship" | "passport" | "license" | "voter_id" | "unknown",
-  "full_name": "Full name in English, transliterate if Devanagari",
-  "dob": "YYYY-MM-DD format or null",
+  "full_name": "Read the ENGLISH/ROMAN script name directly. Do NOT transliterate from Devanagari.",
+  "dob": "YYYY-MM-DD or null",
   "id_number": "Document number or null",
-  "permanent_province": "Exact match from list or null",
-  "permanent_district": "Exact match from list or null",
-  "permanent_municipality": "Municipality or Rural Municipality name or null",
+  "permanent_province": "Exact value from list or null",
+  "permanent_district": "Exact value from list or null",
+  "permanent_municipality": "Full name with Municipality/Rural Municipality suffix or null",
   "permanent_ward": "Ward number as string or null",
-  "permanent_tole": "Tole / street name or null",
+  "permanent_tole": "Tole or street name or null",
   "issued_district": "District where document was issued or null",
-  "issued_date": "YYYY-MM-DD format or null",
+  "issued_date": "YYYY-MM-DD or null",
   "confidence": 0.0 to 1.0
 }}
 
 Rules:
-- For permanent_province use ONLY one of these exact values: {json.dumps(PROVINCES)}
-- For permanent_district use ONLY one of these exact values: {json.dumps(DISTRICTS)}
-- For permanent_municipality include the full suffix: "Municipality", "Metropolitan City", "Sub-Metropolitan City", or "Rural Municipality"
-- For Nepali citizenship: id_number format is XX-XX-XX-XXXXX
-- For passport: id_number is 2 letters + 7 digits
-- Convert all dates to YYYY-MM-DD
-- confidence: 0.95 for clear sharp image, 0.7 for readable, 0.4 for blurry
-- Return ONLY the JSON object, no markdown fences, no explanation
+- permanent_province must be one of: {json.dumps(PROVINCES)}
+- permanent_district must be one of: {json.dumps(DISTRICTS)}
+- id_number for citizenship: XX-XX-XX-XXXXX
+- id_number for passport: 2 letters + 7 digits
+- All dates YYYY-MM-DD
+- confidence: 0.95 clear, 0.70 readable, 0.40 blurry
+- Return ONLY the JSON object, no markdown, no explanation
+"""
+
+DUAL_PROMPT = f"""You are a KYC document OCR engine for Nepal.
+You are given TWO images of the same document: the FRONT side and the BACK side.
+
+The BACK side of Nepali citizenship cards contains the person's name, address, and details in ENGLISH.
+The FRONT side contains the same information in Devanagari script.
+
+IMPORTANT: Read the name from the BACK side (English) — it is more accurate.
+Use both sides together to extract all fields.
+
+Return ONLY valid JSON with exactly these keys (null if not found):
+{{
+  "doc_type": "citizenship" | "passport" | "license" | "voter_id" | "unknown",
+  "full_name": "Read directly from BACK side English text. Do NOT guess or transliterate.",
+  "dob": "YYYY-MM-DD or null",
+  "id_number": "Document number or null",
+  "permanent_province": "Exact value from list or null",
+  "permanent_district": "Exact value from list or null",
+  "permanent_municipality": "Full name with Municipality/Rural Municipality suffix or null",
+  "permanent_ward": "Ward number as string or null",
+  "permanent_tole": "Tole or street name or null",
+  "issued_district": "District where document was issued or null",
+  "issued_date": "YYYY-MM-DD or null",
+  "confidence": 0.0 to 1.0
+}}
+
+Rules:
+- permanent_province must be one of: {json.dumps(PROVINCES)}
+- permanent_district must be one of: {json.dumps(DISTRICTS)}
+- id_number for citizenship: XX-XX-XX-XXXXX
+- All dates YYYY-MM-DD
+- confidence: 0.95 clear, 0.70 readable, 0.40 blurry
+- Return ONLY the JSON object, no markdown, no explanation
 """
 
 
@@ -60,37 +91,50 @@ class OCREngine:
     def __init__(self):
         self._client = None
 
-    def extract_fields_from_image(self, image_path: str) -> dict:
+    def extract_fields_from_image(self, image_path: str, back_path: str | None = None) -> dict:
         client = self._get_client()
-        image_data = self._encode_image(image_path)
-        ext = Path(image_path).suffix.lower().lstrip(".")
-        media_type = "image/jpeg" if ext in ("jpg", "jpeg") else f"image/{ext}"
+        content = []
+
+        front_data = self._encode_image(image_path)
+        front_ext = Path(image_path).suffix.lower().lstrip(".")
+        front_mime = "image/jpeg" if front_ext in ("jpg", "jpeg") else f"image/{front_ext}"
+        content.append({
+            "type": "image_url",
+            "image_url": {
+                "url": f"data:{front_mime};base64,{front_data}",
+                "detail": "high",
+            },
+        })
+
+        if back_path:
+            back_data = self._encode_image(back_path)
+            back_ext = Path(back_path).suffix.lower().lstrip(".")
+            back_mime = "image/jpeg" if back_ext in ("jpg", "jpeg") else f"image/{back_ext}"
+            content.append({
+                "type": "image_url",
+                "image_url": {
+                    "url": f"data:{back_mime};base64,{back_data}",
+                    "detail": "high",
+                },
+            })
+            content.append({"type": "text", "text": DUAL_PROMPT})
+            logger.info("Sending both sides to GPT-4o Vision")
+        else:
+            content.append({"type": "text", "text": SINGLE_PROMPT})
+            logger.info("Sending single side to GPT-4o Vision")
+
         try:
             response = client.chat.completions.create(
                 model=settings.OPENAI_MODEL,
                 max_tokens=600,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "image_url",
-                                "image_url": {
-                                    "url": f"data:{media_type};base64,{image_data}",
-                                    "detail": "high",
-                                },
-                            },
-                            {"type": "text", "text": EXTRACTION_PROMPT},
-                        ],
-                    }
-                ],
+                messages=[{"role": "user", "content": content}],
             )
             raw = response.choices[0].message.content.strip()
             raw = raw.replace("```json", "").replace("```", "").strip()
             result = json.loads(raw)
             logger.info(
-                "GPT-4o extraction doc_type={} confidence={}",
-                result.get("doc_type"), result.get("confidence"),
+                "GPT-4o extraction doc_type={} confidence={} name={}",
+                result.get("doc_type"), result.get("confidence"), result.get("full_name"),
             )
             return result
         except json.JSONDecodeError as e:

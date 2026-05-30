@@ -1,113 +1,71 @@
-import re
 import uuid
+from typing import Optional
 from loguru import logger
 from fastapi import UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.exceptions import OCRFailedException
 from app.db.models.document import Document
-from app.ml.preprocessor import preprocess_for_ocr
 from app.ml.ocr_engine import OCREngine
-from app.ml.classifier import DocumentClassifier
-from app.ml.confidence import score_extracted_fields, compute_overall_confidence
 from app.schemas.ocr import OCRUploadResponse
 from app.utils.file_handler import save_upload
 
 _ocr_engine = OCREngine()
-_classifier = DocumentClassifier()
-
-FIELD_EXTRACTORS: dict[str, dict[str, list[str]]] = {
-    "citizenship": {
-        "full_name": [
-            r"(?:name|नाम)\s*[:\-]\s*([A-Za-z][A-Za-z\s]{3,50})",
-            r"(?:name|नाम)\s*[:\-]\s*([A-Z][A-Z\s]{3,50})",
-            r"^([A-Z]{2,}(?:\s+[A-Z]{2,}){1,3})\s*$",
-            r"([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})",
-        ],
-        "dob": [
-            r"(?:born|birth|जन्म(?:मिति)?)\s*[:\-]?\s*(\d{4}[-/]\d{1,2}[-/]\d{1,2})",
-            r"(?:born|birth|जन्म(?:मिति)?)\s*[:\-]?\s*(\d{1,2}[-/]\d{1,2}[-/]\d{4})",
-            r"(\d{4}[-/]\d{2}[-/]\d{2})",
-            r"(\d{2}[-/]\d{2}[-/]\d{4})",
-        ],
-        "id_number": [
-            r"(\d{2,3}-\d{2,3}-\d{2,3}-\d{4,6})",
-            r"(?:no|number|नं|नम्बर)[.:\s]+(\d[\d\-]{5,18})",
-            r"(\d{2}-\d{2}-\d{2}-\d{5})",
-        ],
-        "issued_district": [
-            r"(?:issued|district|जिल्ला)\s*[:\-]\s*([A-Za-z\s]{3,30})",
-        ],
-        "issued_date": [
-            r"(?:issued|date|मिति)\s*[:\-]?\s*(\d{4}[-/]\d{1,2}[-/]\d{1,2})",
-            r"(?:issued|date|मिति)\s*[:\-]?\s*(\d{1,2}[-/]\d{1,2}[-/]\d{4})",
-        ],
-        "address": [
-            r"(?:address|ठेगाना|बसोबास)\s*[:\-]\s*([A-Za-z,\s]{4,80})",
-            r"(?:district|जिल्ला)\s*[:\-]\s*([A-Za-z\s]{3,40})",
-        ],
-    },
-    "passport": {
-        "full_name":       [r"(?:given names?|surname)[:\s]+([A-Za-z\s]{4,50})", r"^([A-Z]+ [A-Z]+)"],
-        "dob":             [r"(?:date of birth|born)[:\s]*(\d{4}[-/]\d{1,2}[-/]\d{1,2})", r"(\d{4}[-/]\d{2}[-/]\d{2})"],
-        "id_number":       [r"([A-Z]{2}\d{7})"],
-        "address":         [r"(?:nationality|country)[:\s]+([A-Za-z\s]{3,30})"],
-        "issued_date":     [r"(?:date of issue|issued)[:\s]*(\d{4}[-/]\d{1,2}[-/]\d{1,2})"],
-        "issued_district": [],
-    },
-    "license": {
-        "full_name":       [r"(?:name|holder)[:\s]+([A-Za-z\s]{4,50})"],
-        "dob":             [r"(?:dob|birth)[:\s]*(\d{4}[-/]\d{1,2}[-/]\d{1,2})"],
-        "id_number":       [r"(?:license no|licence no)[:\s]*([A-Z0-9\-]+)", r"(\d{9,})"],
-        "address":         [r"(?:address)[:\s]+([A-Za-z,\s]{4,60})"],
-        "issued_date":     [r"(?:valid from|issued)[:\s]*(\d{4}[-/]\d{1,2}[-/]\d{1,2})"],
-        "issued_district": [],
-    },
-    "voter_id": {
-        "full_name":       [r"(?:name|नाम)[:\s]+([A-Za-z\s]{4,50})"],
-        "dob":             [r"(\d{4}[-/]\d{1,2}[-/]\d{1,2})", r"(\d{1,2}[-/]\d{1,2}[-/]\d{4})"],
-        "id_number":       [r"(?:voter id|id no)[:\s]*(\d+)", r"(\d{7,})"],
-        "address":         [r"(?:ward|municipality|गाउँ)[:\s]+([A-Za-z0-9,\s]{4,60})"],
-        "issued_date":     [],
-        "issued_district": [],
-    },
-}
-
-DEFAULT_EXTRACTORS = {
-    "full_name":       [r"(?:name|नाम)[:\s]+([A-Za-z\s]{4,50})", r"([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})"],
-    "dob":             [r"(\d{4}[-/]\d{1,2}[-/]\d{1,2})", r"(\d{1,2}[-/]\d{1,2}[-/]\d{4})"],
-    "id_number":       [r"(\d{2,3}-\d{2,3}-\d{2,3}-\d{4,6})", r"([A-Z]{2}\d{7})", r"(\d{9,})"],
-    "address":         [r"(?:address|ठेगाना)[:\s]+([A-Za-z,\s]{4,60})"],
-    "issued_district": [],
-    "issued_date":     [r"(\d{4}[-/]\d{1,2}[-/]\d{1,2})"],
-}
 
 
 class OCRService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def process_document(self, file: UploadFile, side: str, kyc_id: uuid.UUID | None = None) -> OCRUploadResponse:
+    async def process_document(
+        self,
+        file: UploadFile,
+        side: str,
+        kyc_id: uuid.UUID | None = None,
+        back_file: Optional[UploadFile] = None,
+    ) -> OCRUploadResponse:
         file_path, file_size = await save_upload(file, f"{settings.UPLOAD_DIR}/documents")
-        logger.info("Saved upload path={} size={}", file_path, file_size)
+        logger.info("Saved front path={} size={}", file_path, file_size)
+
+        back_path = None
+        if back_file and back_file.filename:
+            back_path, _ = await save_upload(back_file, f"{settings.UPLOAD_DIR}/documents")
+            logger.info("Saved back path={}", back_path)
+
         try:
-            image = preprocess_for_ocr(file_path)
+            result = _ocr_engine.extract_fields_from_image(file_path, back_path=back_path)
         except Exception:
-            logger.exception("Preprocessing failed path={}", file_path)
-            raise OCRFailedException("Image preprocessing failed")
-        try:
-            raw_text, ocr_confidence = _ocr_engine.extract_text(image)
-        except Exception:
-            logger.exception("OCR extraction failed")
-            raise OCRFailedException("OCR text extraction failed")
-        import cv2
-        original_image = cv2.imread(file_path)
-        logger.info("OCR raw_text side={} text={!r}", side, raw_text[:600])
-        doc_type, classifier_confidence = _classifier.classify(raw_text, original_image)
-        extractors = FIELD_EXTRACTORS.get(doc_type, DEFAULT_EXTRACTORS)
-        fields = _extract_fields(raw_text, extractors)
-        field_scores = score_extracted_fields(fields)
-        overall = compute_overall_confidence(field_scores)
+            logger.exception("GPT-4o Vision OCR failed")
+            raise OCRFailedException("Document analysis failed")
+
+        doc_type = result.get("doc_type", "unknown")
+        confidence = float(result.get("confidence", 0.0))
+        full_name = result.get("full_name")
+        dob = result.get("dob")
+        id_number = result.get("id_number")
+        permanent_province = result.get("permanent_province")
+        permanent_district = result.get("permanent_district")
+        permanent_municipality = result.get("permanent_municipality")
+        permanent_ward = result.get("permanent_ward")
+        permanent_tole = result.get("permanent_tole")
+        issued_district = result.get("issued_district")
+        issued_date = result.get("issued_date")
+
+        address_parts = [p for p in [permanent_tole, permanent_municipality, permanent_district, permanent_province] if p]
+        address = ", ".join(address_parts) if address_parts else None
+
+        field_scores = {
+            k: confidence
+            for k, v in {
+                "full_name": full_name,
+                "dob": dob,
+                "id_number": id_number,
+                "permanent_province": permanent_province,
+                "permanent_district": permanent_district,
+                "permanent_municipality": permanent_municipality,
+            }.items() if v
+        }
+
         doc_id = None
         if kyc_id:
             doc_record = Document(
@@ -117,42 +75,41 @@ class OCRService:
                 original_filename=file.filename or "upload",
                 mime_type=file.content_type or "image/jpeg",
                 file_size_bytes=file_size,
-                ocr_raw_text=raw_text,
+                ocr_raw_text=str(result),
                 detected_doc_type=doc_type,
-                classifier_confidence=classifier_confidence,
+                classifier_confidence=confidence,
             )
             self.db.add(doc_record)
             await self.db.flush()
             await self.db.refresh(doc_record)
             doc_id = doc_record.id
-            logger.info("OCR complete doc_id={} doc_type={} ocr_conf={:.2f} overall={:.2f}", doc_record.id, doc_type, ocr_confidence, overall)
+            logger.info(
+                "OCR complete doc_id={} doc_type={} confidence={:.2f}",
+                doc_id, doc_type, confidence,
+            )
         else:
-            logger.info("OCR complete doc_id=<not persisted> doc_type={} ocr_conf={:.2f} overall={:.2f}", doc_type, ocr_confidence, overall)
+            logger.info(
+                "OCR complete doc_id=<not persisted> doc_type={} confidence={:.2f}",
+                doc_type, confidence,
+            )
+
         return OCRUploadResponse(
             document_id=doc_id or uuid.uuid4(),
             detected_doc_type=doc_type,
-            classifier_confidence=classifier_confidence,
-            ocr_confidence=ocr_confidence,
-            full_name=fields.get("full_name"),
-            dob=fields.get("dob"),
-            id_number=fields.get("id_number"),
-            address=fields.get("address"),
-            issued_district=fields.get("issued_district"),
-            issued_date=fields.get("issued_date"),
+            classifier_confidence=confidence,
+            ocr_confidence=confidence,
+            full_name=full_name,
+            dob=dob,
+            id_number=id_number,
+            address=address,
+            issued_district=issued_district,
+            issued_date=issued_date,
+            permanent_province=permanent_province,
+            permanent_district=permanent_district,
+            permanent_municipality=permanent_municipality,
+            permanent_ward=permanent_ward,
+            permanent_tole=permanent_tole,
             field_scores=field_scores,
-            overall_confidence=overall,
+            overall_confidence=confidence,
             side=side,
         )
-
-
-def _extract_fields(text: str, extractors: dict[str, list[str]]) -> dict[str, str | None]:
-    results: dict[str, str | None] = {}
-    for field, patterns in extractors.items():
-        value = None
-        for pattern in patterns:
-            match = re.search(pattern, text, re.IGNORECASE | re.MULTILINE)
-            if match:
-                value = match.group(1).strip()
-                break
-        results[field] = value
-    return results

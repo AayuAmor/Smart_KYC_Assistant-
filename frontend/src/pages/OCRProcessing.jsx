@@ -11,7 +11,6 @@ import {
   LayoutList,
 } from "lucide-react";
 import { useKYCStore } from "../store/kycStore.js";
-import { uploadDocument } from "../services/api.js";
 
 const STEPS = [
   { label: "Detecting document", Icon: FileImage },
@@ -44,43 +43,38 @@ export default function OCRProcessing() {
         clearInterval(interval);
         return;
       }
-
       try {
-        const frontResult = await uploadDocument(docFile.front, "front");
-
-        let merged = { ...frontResult };
+        const fd = new FormData();
+        fd.append("file", docFile.front, "front.jpg");
+        fd.append("side", "front");
         if (docFile.back) {
-          const backResult = await uploadDocument(docFile.back, "back");
-          for (const key of ["full_name", "dob", "id_number", "address", "issued_district", "issued_date"]) {
-            if (!merged[key] && backResult[key]) merged[key] = backResult[key];
-          }
-          if (typeof backResult.overall_confidence === "number") {
-            merged.overall_confidence =
-              (frontResult.overall_confidence + backResult.overall_confidence) / 2;
-          }
+          fd.append("back_file", docFile.back, "back.jpg");
         }
-
-        const confidence =
-          merged.overall_confidence ?? merged.ocr_confidence ?? null;
-        setOcrConfidence(
-          typeof confidence === "number" ? Math.round(confidence * 100) : null,
-        );
+        const BASE = import.meta.env.VITE_API_URL || "http://localhost:8000/api/v1";
+        const res = await fetch(`${BASE}/ocr/upload`, { method: "POST", body: fd });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.detail || `Upload failed: ${res.status}`);
+        }
+        const merged = await res.json();
+        const conf = merged.overall_confidence ?? merged.ocr_confidence ?? null;
+        setOcrConfidence(typeof conf === "number" ? Math.round(conf * 100) : null);
         setOcrResult(merged);
         setFormData({
           ...formData,
-          full_name: merged.full_name || "",
-          dob: merged.dob || "",
-          id_number: merged.id_number || "",
-          address: merged.address || "",
+          full_name:              merged.full_name || "",
+          dob:                    merged.dob || "",
+          id_number:              merged.id_number || "",
+          address:                merged.address || "",
+          permanent_province:     merged.permanent_province || "",
+          permanent_district:     merged.permanent_district || "",
+          permanent_municipality: merged.permanent_municipality || "",
+          permanent_ward:         merged.permanent_ward || "",
+          permanent_tole:         merged.permanent_tole || "",
         });
         setDone(true);
-      } catch (error) {
-        console.error(error);
-        setError(
-          typeof error === "string"
-            ? error
-            : error?.message || "OCR extraction failed",
-        );
+      } catch (err) {
+        setError(typeof err === "string" ? err : err?.message || "OCR extraction failed");
       }
     }
     run();
