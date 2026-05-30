@@ -5,6 +5,7 @@ from pydantic import BaseModel, ConfigDict
 
 class OCRUploadResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
+
     document_id: uuid.UUID
     detected_doc_type: str
     classifier_confidence: float
@@ -15,6 +16,11 @@ class OCRUploadResponse(BaseModel):
     address: Optional[str] = None
     issued_district: Optional[str] = None
     issued_date: Optional[str] = None
+    permanent_province: Optional[str] = None
+    permanent_district: Optional[str] = None
+    permanent_municipality: Optional[str] = None
+    permanent_ward: Optional[str] = None
+    permanent_tole: Optional[str] = None
     field_scores: dict[str, float] = {}
     overall_confidence: float
     side: str

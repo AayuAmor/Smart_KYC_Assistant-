@@ -145,9 +145,11 @@ function FormField({
   );
 }
 
+const MOCK = false;
+
 export default function KYCForm() {
   const nav = useNavigate();
-  const { formData, setFormData, ocrResult, setKycId } = useKYCStore();
+  const { formData, setFormData, ocrResult, setKycId, setKycStatus } = useKYCStore();
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState("form");
@@ -163,29 +165,18 @@ export default function KYCForm() {
     const filled = new Set();
 
     for (const [k, v] of Object.entries({
-      full_name: ocrResult.full_name,
-      dob: ocrResult.dob,
-      id_number: ocrResult.id_number,
+      full_name:               ocrResult.full_name || ocrResult.name,
+      dob:                     ocrResult.dob,
+      id_number:               ocrResult.id_number,
+      permanent_province:      ocrResult.permanent_province,
+      permanent_district:      ocrResult.permanent_district,
+      permanent_municipality:  ocrResult.permanent_municipality,
+      permanent_ward:          ocrResult.permanent_ward,
+      permanent_tole:          ocrResult.permanent_tole,
     })) {
       if (v) {
         updates[k] = v;
         filled.add(k);
-      }
-    }
-
-    if (ocrResult.address) {
-      const p = parseOCRAddress(ocrResult.address);
-      for (const [k, v] of Object.entries({
-        permanent_province: p.province,
-        permanent_district: p.district,
-        permanent_municipality: p.municipality,
-        permanent_ward: p.ward,
-        permanent_tole: p.tole,
-      })) {
-        if (v) {
-          updates[k] = v;
-          filled.add(k);
-        }
       }
     }
 
@@ -263,10 +254,16 @@ export default function KYCForm() {
           : {}),
       };
 
-      let data;
-      data = await submitKYC(payload);
-      setKycId(data.kyc_id);
-      nav("/kyc/face-verify");
+      if (MOCK) {
+        const data = { kyc_id: "KYC-" + Date.now(), status: "submitted" };
+        setKycId(data.kyc_id);
+        setKycStatus("submitted");
+        setStep("done");
+      } else {
+        const data = await submitKYC(payload);
+        setKycId(data.kyc_id);
+        nav("/kyc/face-verify");
+      }
     } catch (error) {
       console.error(error);
       setErrors((e) => ({
