@@ -20,8 +20,6 @@ class Settings(BaseSettings):
 
     OPENAI_API_KEY: str = ""
     OPENAI_MODEL: str = "gpt-4o"
-    TESSERACT_CMD: str = "/usr/bin/tesseract"
-    OCR_CONFIDENCE_THRESHOLD: float = 0.60
 
     CORS_ORIGINS: str = "http://localhost:5173"
 
