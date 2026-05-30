@@ -8,9 +8,9 @@ def preprocess_for_ocr(image_path: str) -> np.ndarray:
         raise ValueError(f"Cannot read image at {image_path}")
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     gray = cv2.fastNlMeansDenoising(gray, h=10)
+    gray = _sharpen(gray)
     gray = _deskew(gray)
     _, gray = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-    gray = _sharpen(gray)
     return gray
 
 

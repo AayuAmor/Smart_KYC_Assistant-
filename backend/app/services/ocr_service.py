@@ -18,32 +18,54 @@ _classifier = DocumentClassifier()
 
 FIELD_EXTRACTORS: dict[str, dict[str, list[str]]] = {
     "citizenship": {
-        "full_name":       [r"(?:name|नाम)[:\s]+([A-Za-z\s]{4,40})", r"^([A-Z][a-z]+ [A-Z][a-z]+)"],
-        "dob":             [r"(?:born|birth|जन्म)[:\s]*(\d{4}[-/]\d{2}[-/]\d{2})", r"(\d{4}[-/]\d{2}[-/]\d{2})"],
-        "id_number":       [r"(\d{2}-\d{2}-\d{2}-\d{5})"],
-        "issued_district": [r"(?:issued|district|जिल्ला)[:\s]+([A-Za-z\s]{3,30})"],
-        "issued_date":     [r"(?:issued on|date)[:\s]*(\d{4}[-/]\d{2}[-/]\d{2})"],
-        "address":         [r"(?:address|ठेगाना)[:\s]+([A-Za-z,\s]{4,60})"],
+        "full_name": [
+            r"(?:name|नाम)\s*[:\-]\s*([A-Za-z][A-Za-z\s]{3,50})",
+            r"(?:name|नाम)\s*[:\-]\s*([A-Z][A-Z\s]{3,50})",
+            r"^([A-Z]{2,}(?:\s+[A-Z]{2,}){1,3})\s*$",
+            r"([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})",
+        ],
+        "dob": [
+            r"(?:born|birth|जन्म(?:मिति)?)\s*[:\-]?\s*(\d{4}[-/]\d{1,2}[-/]\d{1,2})",
+            r"(?:born|birth|जन्म(?:मिति)?)\s*[:\-]?\s*(\d{1,2}[-/]\d{1,2}[-/]\d{4})",
+            r"(\d{4}[-/]\d{2}[-/]\d{2})",
+            r"(\d{2}[-/]\d{2}[-/]\d{4})",
+        ],
+        "id_number": [
+            r"(\d{2,3}-\d{2,3}-\d{2,3}-\d{4,6})",
+            r"(?:no|number|नं|नम्बर)[.:\s]+(\d[\d\-]{5,18})",
+            r"(\d{2}-\d{2}-\d{2}-\d{5})",
+        ],
+        "issued_district": [
+            r"(?:issued|district|जिल्ला)\s*[:\-]\s*([A-Za-z\s]{3,30})",
+        ],
+        "issued_date": [
+            r"(?:issued|date|मिति)\s*[:\-]?\s*(\d{4}[-/]\d{1,2}[-/]\d{1,2})",
+            r"(?:issued|date|मिति)\s*[:\-]?\s*(\d{1,2}[-/]\d{1,2}[-/]\d{4})",
+        ],
+        "address": [
+            r"(?:address|ठेगाना|बसोबास)\s*[:\-]\s*([A-Za-z,\s]{4,80})",
+            r"(?:district|जिल्ला)\s*[:\-]\s*([A-Za-z\s]{3,40})",
+        ],
     },
     "passport": {
-        "full_name":       [r"(?:given names?|surname)[:\s]+([A-Z\s]{4,40})", r"^([A-Z]+ [A-Z]+)"],
-        "dob":             [r"(?:date of birth|born)[:\s]*(\d{4}[-/]\d{2}[-/]\d{2})"],
+        "full_name":       [r"(?:given names?|surname)[:\s]+([A-Za-z\s]{4,50})", r"^([A-Z]+ [A-Z]+)"],
+        "dob":             [r"(?:date of birth|born)[:\s]*(\d{4}[-/]\d{1,2}[-/]\d{1,2})", r"(\d{4}[-/]\d{2}[-/]\d{2})"],
         "id_number":       [r"([A-Z]{2}\d{7})"],
         "address":         [r"(?:nationality|country)[:\s]+([A-Za-z\s]{3,30})"],
-        "issued_date":     [r"(?:date of issue|issued)[:\s]*(\d{4}[-/]\d{2}[-/]\d{2})"],
+        "issued_date":     [r"(?:date of issue|issued)[:\s]*(\d{4}[-/]\d{1,2}[-/]\d{1,2})"],
         "issued_district": [],
     },
     "license": {
-        "full_name":       [r"(?:name|holder)[:\s]+([A-Za-z\s]{4,40})"],
-        "dob":             [r"(?:dob|birth)[:\s]*(\d{4}[-/]\d{2}[-/]\d{2})"],
+        "full_name":       [r"(?:name|holder)[:\s]+([A-Za-z\s]{4,50})"],
+        "dob":             [r"(?:dob|birth)[:\s]*(\d{4}[-/]\d{1,2}[-/]\d{1,2})"],
         "id_number":       [r"(?:license no|licence no)[:\s]*([A-Z0-9\-]+)", r"(\d{9,})"],
         "address":         [r"(?:address)[:\s]+([A-Za-z,\s]{4,60})"],
-        "issued_date":     [r"(?:valid from|issued)[:\s]*(\d{4}[-/]\d{2}[-/]\d{2})"],
+        "issued_date":     [r"(?:valid from|issued)[:\s]*(\d{4}[-/]\d{1,2}[-/]\d{1,2})"],
         "issued_district": [],
     },
     "voter_id": {
-        "full_name":       [r"(?:name|नाम)[:\s]+([A-Za-z\s]{4,40})"],
-        "dob":             [r"(\d{4}[-/]\d{2}[-/]\d{2})"],
+        "full_name":       [r"(?:name|नाम)[:\s]+([A-Za-z\s]{4,50})"],
+        "dob":             [r"(\d{4}[-/]\d{1,2}[-/]\d{1,2})", r"(\d{1,2}[-/]\d{1,2}[-/]\d{4})"],
         "id_number":       [r"(?:voter id|id no)[:\s]*(\d+)", r"(\d{7,})"],
         "address":         [r"(?:ward|municipality|गाउँ)[:\s]+([A-Za-z0-9,\s]{4,60})"],
         "issued_date":     [],
@@ -52,12 +74,12 @@ FIELD_EXTRACTORS: dict[str, dict[str, list[str]]] = {
 }
 
 DEFAULT_EXTRACTORS = {
-    "full_name":       [r"(?:name)[:\s]+([A-Za-z\s]{4,40})"],
-    "dob":             [r"(\d{4}[-/]\d{2}[-/]\d{2})"],
-    "id_number":       [r"(\d{2}-\d{2}-\d{2}-\d{5})", r"([A-Z]{2}\d{7})", r"(\d{9,})"],
-    "address":         [r"(?:address)[:\s]+([A-Za-z,\s]{4,60})"],
+    "full_name":       [r"(?:name|नाम)[:\s]+([A-Za-z\s]{4,50})", r"([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})"],
+    "dob":             [r"(\d{4}[-/]\d{1,2}[-/]\d{1,2})", r"(\d{1,2}[-/]\d{1,2}[-/]\d{4})"],
+    "id_number":       [r"(\d{2,3}-\d{2,3}-\d{2,3}-\d{4,6})", r"([A-Z]{2}\d{7})", r"(\d{9,})"],
+    "address":         [r"(?:address|ठेगाना)[:\s]+([A-Za-z,\s]{4,60})"],
     "issued_district": [],
-    "issued_date":     [r"(\d{4}[-/]\d{2}[-/]\d{2})"],
+    "issued_date":     [r"(\d{4}[-/]\d{1,2}[-/]\d{1,2})"],
 }
 
 
@@ -80,6 +102,7 @@ class OCRService:
             raise OCRFailedException("OCR text extraction failed")
         import cv2
         original_image = cv2.imread(file_path)
+        logger.info("OCR raw_text side={} text={!r}", side, raw_text[:600])
         doc_type, classifier_confidence = _classifier.classify(raw_text, original_image)
         extractors = FIELD_EXTRACTORS.get(doc_type, DEFAULT_EXTRACTORS)
         fields = _extract_fields(raw_text, extractors)
