@@ -85,14 +85,16 @@ body {
 @keyframes dots     { 0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; } 40% { transform: scale(1); opacity: 1; } }
 @keyframes shimmer  { 0% { background-position: -400px 0; } 100% { background-position: 400px 0; } }
 @keyframes slideIn  { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: translateX(0); } }
-@keyframes checkPop { 0% { transform: scale(0); } 70% { transform: scale(1.2); } 100% { transform: scale(1); } }
+@keyframes checkPop    { 0% { transform: scale(0); } 70% { transform: scale(1.2); } 100% { transform: scale(1); } }
+@keyframes autofill-pop { 0%, 100% { box-shadow: 0 0 0 0 rgba(96,187,70,0); } 40% { box-shadow: 0 0 0 4px rgba(96,187,70,0.18); } }
 
 .scan-line  { animation: scan-line 2s ease-in-out infinite; }
 .pulse-ring { animation: pulse-ring 2s ease-in-out infinite; }
 .fade-up    { animation: fadeUp   0.35s ease both; }
 .fade-in    { animation: fadeIn   0.25s ease both; }
 .slide-in   { animation: slideIn  0.3s ease both; }
-.spin-anim  { animation: spin     0.8s linear infinite; }
+.spin-anim     { animation: spin         0.8s linear   infinite; }
+.autofill-pop  { animation: autofill-pop 0.8s ease-out  1;        }
 
 .stagger > *:nth-child(1) { animation-delay: .04s; }
 .stagger > *:nth-child(2) { animation-delay: .08s; }
