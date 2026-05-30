@@ -13,6 +13,7 @@ class OCRUploadResponse(BaseModel):
     full_name: Optional[str] = None
     dob: Optional[str] = None
     id_number: Optional[str] = None
+    gender: Optional[str] = None
     address: Optional[str] = None
     issued_district: Optional[str] = None
     issued_date: Optional[str] = None

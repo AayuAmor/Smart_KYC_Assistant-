@@ -147,18 +147,80 @@ function useCamera(videoRef) {
   return { ready, camError };
 }
 
-function useFaceDetection(cameraReady) {
+function useFaceDetection(cameraReady, videoRef) {
   const [state, setState] = useState(S.INIT);
+  const [issueIdx] = useState(0);
+  const [chIdx, setChIdx] = useState(0);
+  const [chPct, setChPct] = useState(0);
+  const [confidence, setConfidence] = useState(null);
+  const timerRef = useRef(null);
+  const pctRef = useRef(null);
 
   useEffect(() => {
-    setState(cameraReady ? S.VALID : S.INIT);
+    if (!cameraReady) { setState(S.INIT); return; }
+    setState(S.NO_FACE);
+    const t = setTimeout(() => setState(S.VALID), 1800);
+    return () => clearTimeout(t);
   }, [cameraReady]);
 
+  useEffect(() => {
+    if (state !== S.VALID) return;
+    const t = setTimeout(() => {
+      setState(S.LIVENESS);
+      setChIdx(0);
+      setChPct(0);
+    }, 1200);
+    return () => clearTimeout(t);
+  }, [state]);
+
+  useEffect(() => {
+    if (state !== S.LIVENESS) return;
+    clearInterval(pctRef.current);
+    setChPct(0);
+    let pct = 0;
+    pctRef.current = setInterval(() => {
+      pct += 3;
+      setChPct(Math.min(pct, 100));
+      if (pct >= 100) {
+        clearInterval(pctRef.current);
+        setChIdx((prev) => {
+          const next = prev + 1;
+          if (next >= CHALLENGES.length) {
+            setState(S.PROCESSING);
+            setConfidence(0);
+            let c = 0;
+            timerRef.current = setInterval(() => {
+              c += 4;
+              setConfidence(Math.min(c, 94));
+              if (c >= 94) {
+                clearInterval(timerRef.current);
+                setState(S.SUCCESS);
+                setConfidence(94);
+              }
+            }, 60);
+          } else {
+            setChPct(0);
+          }
+          return next;
+        });
+      }
+    }, 90);
+    return () => clearInterval(pctRef.current);
+  }, [state, chIdx]);
+
   function retry() {
-    setState(cameraReady ? S.VALID : S.INIT);
+    clearInterval(timerRef.current);
+    clearInterval(pctRef.current);
+    setChIdx(0);
+    setChPct(0);
+    setConfidence(null);
+    setState(cameraReady ? S.NO_FACE : S.INIT);
+    if (cameraReady) {
+      setTimeout(() => setState(S.VALID), 1400);
+    }
   }
 
-  return { state, issueIdx: 0, chIdx: 0, chPct: 0, confidence: null, retry };
+  return { state, issueIdx, chIdx, chPct, confidence, retry };
 }
 
 function CameraOverlay({ state, chIdx }) {
@@ -843,7 +905,7 @@ export default function FaceVerification() {
     chPct,
     confidence,
     retry,
-  } = useFaceDetection(camReady);
+  } = useFaceDetection(camReady, videoRef);
 
   const state = camError ? S.CAM_ERROR : detState;
   const issue = state === S.PARTIAL ? ISSUES[issueIdx % ISSUES.length] : null;
@@ -854,23 +916,22 @@ export default function FaceVerification() {
     try {
       const canvas = document.createElement("canvas");
       const video = videoRef.current;
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
+      canvas.width = video.videoWidth || 640;
+      canvas.height = video.videoHeight || 480;
       canvas.getContext("2d").drawImage(video, 0, 0);
       const blob = await new Promise((resolve) =>
         canvas.toBlob(resolve, "image/jpeg", 0.92),
       );
       const { kycId: existingKycId } = useKYCStore.getState();
       if (!existingKycId) {
-        setSubmitError("Session expired. Please restart the KYC process.");
+        setSubmitError("Session expired. Please go back and fill the form again.");
         setSubmitting(false);
         return;
       }
       const faceResult = await verifyFace(blob, existingKycId);
       if (!faceResult.passed) {
         setSubmitError(
-          faceResult.failure_reason ||
-            "Face verification failed. Please try again.",
+          faceResult.failure_reason || "Face verification failed. Please try again.",
         );
         setSubmitting(false);
         return;
@@ -878,7 +939,6 @@ export default function FaceVerification() {
       setKycStatus("submitted");
       nav("/kyc/tracking");
     } catch (error) {
-      console.error(error);
       setSubmitError(
         typeof error === "string"
           ? error
