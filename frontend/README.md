@@ -1,6 +1,6 @@
 # Smart KYC Assistant
 
-AI-powered KYC onboarding system for eSewa — eSewa Hackathon 2026, Challenge 4.
+AI-powered KYC onboarding system for eSewa - eSewa Hackathon 2026, Challenge 4.
 
 ## Quick Start
 
@@ -30,4 +30,4 @@ uvicorn app.main:app --reload --port 8000
 | POST   | /api/chat/ask         | AI chatbot             |
 
 ## Team: The Dobermans
-Aayush Kumar Raut · Jharna Adhikari · Swarit Nidhi · Nabijan Ansari
+Aayush Kumar Raut · Jharna Adhikari · Amrit Chand · Pragati Gaire
