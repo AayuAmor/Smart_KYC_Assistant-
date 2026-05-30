@@ -23,12 +23,6 @@ const quickActions = [
   { icon: History,       label: 'History',        sub: 'KYC submission history',  href: '/kyc/tracking',  bg: '#F5F3FF', color: '#8B5CF6' },
 ]
 
-const recentActivity = [
-  { icon: CheckCircle2, label: 'Document uploaded successfully',   time: '2 mins ago',   iconColor: '#60BB46', bg: '#EBF7E6' },
-  { icon: Clock,        label: 'KYC verification in progress',     time: '1 hour ago',   iconColor: '#F59E0B', bg: '#FFF7ED' },
-  { icon: Sparkles,     label: 'AI: "Your passport is accepted"',  time: '3 hours ago',  iconColor: '#3B82F6', bg: '#EFF6FF' },
-]
-
 const statusMap = {
   pending:      { label: 'Pending',      badgeBg: '#FFF7ED', badgeText: '#C2410C', pct: 20, desc: 'Upload your documents to begin identity verification.' },
   submitted:    { label: 'Submitted',    badgeBg: '#EFF6FF', badgeText: '#1D4ED8', pct: 50, desc: 'Application received. Processing will begin shortly.' },
@@ -36,13 +30,6 @@ const statusMap = {
   approved:     { label: 'Approved',     badgeBg: '#EBF7E6', badgeText: '#3A8A28', pct: 100, desc: 'Your KYC is fully verified. You\'re all set!' },
   rejected:     { label: 'Rejected',     badgeBg: '#FEF2F2', badgeText: '#B91C1C', pct: 30, desc: 'Verification failed. Please re-upload a clear document.' },
 }
-
-const verificationTimeline = [
-  { label: 'Documents Submitted', done: true,  active: false },
-  { label: 'Identity Verified',   done: true,  active: false },
-  { label: 'Under Review',        done: false, active: true  },
-  { label: 'KYC Approved',        done: false, active: false },
-]
 
 function KYCIllustration() {
   return (
@@ -99,6 +86,46 @@ export default function Dashboard() {
   const nav = useNavigate()
   const { user, kycStatus } = useKYCStore()
 
+  const recentActivity = [
+    kycStatus !== 'pending' && {
+      icon: CheckCircle2,
+      label: 'KYC application submitted',
+      time: 'Recently',
+      iconColor: '#60BB46',
+      bg: '#EBF7E6',
+    },
+    kycStatus === 'under_review' && {
+      icon: Clock,
+      label: 'KYC verification in progress',
+      time: 'Recently',
+      iconColor: '#F59E0B',
+      bg: '#FFF7ED',
+    },
+    kycStatus === 'approved' && {
+      icon: CheckCircle2,
+      label: 'KYC approved — identity verified',
+      time: 'Recently',
+      iconColor: '#22C55E',
+      bg: '#F0FDF4',
+    },
+    kycStatus === 'rejected' && {
+      icon: Sparkles,
+      label: 'KYC rejected — action required',
+      time: 'Recently',
+      iconColor: '#EF4444',
+      bg: '#FEF2F2',
+    },
+  ].filter(Boolean)
+
+  const stageOrder = ['submitted', 'under_review', 'approved']
+  const currentStage = stageOrder.indexOf(kycStatus)
+  const verificationTimeline = [
+    { label: 'Documents Submitted', done: currentStage >= 0, active: currentStage === 0 },
+    { label: 'Identity Verified',   done: currentStage >= 1, active: currentStage === 1 },
+    { label: 'Under Review',        done: currentStage >= 2, active: currentStage === 2 },
+    { label: 'KYC Approved',        done: currentStage >= 3, active: currentStage === 3 },
+  ]
+
   const hour = new Date().getHours()
   const greet = hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening'
   const st = statusMap[kycStatus] || statusMap.pending
@@ -140,7 +167,7 @@ export default function Dashboard() {
           <div className="px-5 pt-5 pb-4 flex items-start justify-between gap-4">
             <div className="flex-1">
               <p className="text-xs font-semibold text-primary/80 mb-1">
-                {greet}, {user?.name || 'User'}! 👋
+                {greet}, {user.name || 'there'}! 👋
               </p>
               <h2 className="text-xl font-black text-text-dark leading-tight mb-2">
                 Complete your KYC<br />Verification

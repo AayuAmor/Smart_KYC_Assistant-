@@ -150,7 +150,7 @@ export default function ChatbotPage() {
                 transition={{ duration: 0.25, ease: 'easeOut' }}
                 className={`flex items-end gap-2 ${m.role === 'user' ? 'flex-row-reverse' : ''}`}
               >
-                {m.role === 'bot' && (
+                {(m.role === 'bot' || m.role === 'assistant') && (
                   <div
                     className="w-7 h-7 rounded-xl flex items-center justify-center text-white text-[10px] font-black shrink-0 mb-0.5"
                     style={{ background: 'linear-gradient(135deg, #60BB46, #3A8A28)' }}
@@ -161,7 +161,7 @@ export default function ChatbotPage() {
                 <div
                   className={[
                     'px-4 py-3 text-sm leading-relaxed max-w-[80%] shadow-sm',
-                    m.role === 'bot'
+                    m.role === 'bot' || m.role === 'assistant'
                       ? 'bg-white border border-slate-100 text-text-dark rounded-2xl rounded-bl-sm'
                       : 'text-white rounded-2xl rounded-br-sm',
                   ].join(' ')}

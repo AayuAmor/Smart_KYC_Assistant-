@@ -7,7 +7,7 @@ import {
   X, ChevronRight, RotateCcw,
 } from 'lucide-react'
 import { useKYCStore } from '../store/kycStore.js'
-import { submitKYC, verifyFace } from '../services/api.js'
+import { verifyFace } from '../services/api.js'
 import { Btn } from '../components/UI.jsx'
 
 const OW = 220
@@ -649,37 +649,31 @@ export default function FaceVerification() {
     setSubmitting(true)
     setSubmitError(null)
     try {
-      let data
       if (MOCK) {
         await new Promise(r => setTimeout(r, 1500))
-        data = { kyc_id: 'KYC-' + Date.now(), status: 'submitted' }
-      } else {
-        const canvas = document.createElement('canvas')
-        const video = videoRef.current
-        canvas.width = video.videoWidth
-        canvas.height = video.videoHeight
-        canvas.getContext('2d').drawImage(video, 0, 0)
-        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.92))
-        const { kycId: existingKycId, formData } = useKYCStore.getState()
-        if (existingKycId) {
-          const faceResult = await verifyFace(blob, existingKycId)
-          if (!faceResult.passed) {
-            setSubmitError(faceResult.failure_reason || 'Face verification failed. Please try again.')
-            setSubmitting(false)
-            return
-          }
-          data = { kyc_id: existingKycId, status: 'submitted' }
-        } else {
-          data = await submitKYC(formData)
-          const faceResult = await verifyFace(blob, data.kyc_id)
-          if (!faceResult.passed) {
-            setSubmitError(faceResult.failure_reason || 'Face verification failed. Please try again.')
-            setSubmitting(false)
-            return
-          }
-        }
+        setKycId('KYC-' + Date.now())
+        setKycStatus('submitted')
+        nav('/kyc/tracking')
+        return
       }
-      setKycId(data.kyc_id)
+      const canvas = document.createElement('canvas')
+      const video = videoRef.current
+      canvas.width = video.videoWidth
+      canvas.height = video.videoHeight
+      canvas.getContext('2d').drawImage(video, 0, 0)
+      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.92))
+      const { kycId: existingKycId } = useKYCStore.getState()
+      if (!existingKycId) {
+        setSubmitError('Session expired. Please restart the KYC process.')
+        setSubmitting(false)
+        return
+      }
+      const faceResult = await verifyFace(blob, existingKycId)
+      if (!faceResult.passed) {
+        setSubmitError(faceResult.failure_reason || 'Face verification failed. Please try again.')
+        setSubmitting(false)
+        return
+      }
       setKycStatus('submitted')
       nav('/kyc/tracking')
     } catch (e) {

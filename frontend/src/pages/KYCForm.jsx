@@ -12,9 +12,6 @@ import {
   PROVINCES, getDistricts, getMunicipalities, parseOCRAddress,
 } from '../data/nepalAddress.js'
 
-/* ================================================================
-   Constants
-   ================================================================ */
 const OCCUPATIONS = [
   'Student', 'Software Engineer', 'Teacher', 'Doctor', 'Nurse',
   'Banker', 'Business Owner', 'Government Employee', 'Private Employee',
@@ -23,9 +20,6 @@ const OCCUPATIONS = [
   'Police Officer', 'Army Personnel', 'Other',
 ]
 
-/* ================================================================
-   Validation
-   ================================================================ */
 function validate(f) {
   const e = {}
 
@@ -60,11 +54,6 @@ function validate(f) {
   return e
 }
 
-/* ================================================================
-   Reusable primitives
-   ================================================================ */
-
-/** eSewa-style green section title with a fading underline */
 function SectionTitle({ title }) {
   return (
     <div className="mb-5">
@@ -76,12 +65,10 @@ function SectionTitle({ title }) {
   )
 }
 
-/** Thin full-width divider between form sections */
 function Divider() {
   return <div className="h-px bg-slate-100" />
 }
 
-/** Label row + optional tag + auto-filled badge + animated error */
 function FormField({ label, error, optional = false, autoFilled = false, children }) {
   return (
     <div className="flex flex-col gap-1.5">
@@ -127,9 +114,6 @@ function FormField({ label, error, optional = false, autoFilled = false, childre
   )
 }
 
-/* ================================================================
-   Main KYCForm
-   ================================================================ */
 export default function KYCForm() {
   const nav = useNavigate()
   const { formData, setFormData, ocrResult, setKycId, setKycStatus } = useKYCStore()
@@ -141,7 +125,6 @@ export default function KYCForm() {
   const ocrApplied = useRef(false)
   const MOCK = import.meta.env.VITE_ENABLE_API !== 'true'
 
-  /* ── Auto-populate form from OCR result ── */
   useEffect(() => {
     if (!ocrResult || ocrApplied.current) return
     ocrApplied.current = true
@@ -150,7 +133,7 @@ export default function KYCForm() {
     const filled  = new Set()
 
     for (const [k, v] of Object.entries({
-      full_name: ocrResult.name,
+      full_name: ocrResult.full_name || ocrResult.name,
       dob:       ocrResult.dob,
       id_number: ocrResult.id_number,
     })) {
@@ -178,7 +161,6 @@ export default function KYCForm() {
     }
   }, [ocrResult])
 
-  /* ── Field change handler with address cascade ── */
   function handle(field, val) {
     const patch = { [field]: val }
     if (field === 'permanent_province') { patch.permanent_district = ''; patch.permanent_municipality = '' }
@@ -190,14 +172,12 @@ export default function KYCForm() {
     setAutoFilled(prev => { const n = new Set(prev); n.delete(field); return n })
   }
 
-  /* ── Proceed to review ── */
   function handleNext() {
     const e = validate(formData)
     if (Object.keys(e).length) { setErrors(e); return }
     setStep('review')
   }
 
-  /* ── Submit ── */
   async function handleSubmit() {
     setLoading(true)
     try {
@@ -225,16 +205,17 @@ export default function KYCForm() {
       if (MOCK) {
         await new Promise(r => setTimeout(r, 1500))
         data = { kyc_id: 'KYC-' + Date.now(), status: 'submitted' }
+        setKycId(data.kyc_id)
+        setKycStatus('submitted')
+        setStep('done')
       } else {
         data = await submitKYC(payload)
+        setKycId(data.kyc_id)
+        nav('/kyc/face-verify')
       }
-      setKycId(data.kyc_id)
-      setKycStatus('submitted')
-      setStep('done')
     } finally { setLoading(false) }
   }
 
-  /* ── Text input class helper ── */
   const ic = (field) => [
     'w-full bg-white border rounded-xl px-4 py-3 text-sm text-text-dark',
     'placeholder:text-slate-400 outline-none transition-all duration-200',
@@ -248,9 +229,6 @@ export default function KYCForm() {
 
   const sameAsPerm = formData.current_same_as_permanent
 
-  /* ================================================================
-     DONE step
-     ================================================================ */
   if (step === 'done') return (
     <div className="page-root flex flex-col items-center justify-center px-6 text-center">
       <motion.div
@@ -280,9 +258,6 @@ export default function KYCForm() {
     </div>
   )
 
-  /* ================================================================
-     REVIEW step
-     ================================================================ */
   if (step === 'review') {
     const permAddr = [
       formData.permanent_tole,
@@ -351,7 +326,7 @@ export default function KYCForm() {
             </p>
           </div>
 
-          <Btn full size="lg" onClick={() => nav('/kyc/face-verify')}>
+          <Btn full size="lg" loading={loading} onClick={handleSubmit}>
             Confirm & Start Face Verification
             <ArrowRight size={16} strokeWidth={2.5} />
           </Btn>
@@ -360,9 +335,6 @@ export default function KYCForm() {
     )
   }
 
-  /* ================================================================
-     FORM step — single continuous white form
-     ================================================================ */
   return (
     <div className="page-root pb-8">
       <StepHeader
@@ -374,7 +346,6 @@ export default function KYCForm() {
 
       <div className="max-w-[480px] mx-auto px-4 py-5 space-y-4">
 
-        {/* ── OCR success banner ── */}
         <AnimatePresence>
           {showBanner && ocrResult && (
             <motion.div
@@ -400,12 +371,8 @@ export default function KYCForm() {
           )}
         </AnimatePresence>
 
-        {/* ══════════════════════════════════════════════
-            Single continuous white form card
-            ══════════════════════════════════════════════ */}
         <div className="bg-white rounded-2xl shadow-[0_2px_12px_rgba(16,24,40,0.06)] border border-slate-100">
 
-          {/* ── Personal Information ── */}
           <div className="px-5 pt-6 pb-5">
             <SectionTitle title="Personal Information" />
             <div className="space-y-4">
@@ -471,11 +438,9 @@ export default function KYCForm() {
 
           <Divider />
 
-          {/* ── Permanent Address ── */}
           <div className="px-5 pt-6 pb-5">
             <SectionTitle title="Permanent Address" />
 
-            {/* Address auto-fill notice */}
             {showBanner && ocrResult?.address && (
               <div className="flex items-start gap-2.5 bg-primary/8 border border-primary/15 rounded-xl px-3.5 py-3 mb-4">
                 <Info size={14} className="text-primary mt-0.5 shrink-0" />
@@ -557,11 +522,9 @@ export default function KYCForm() {
 
           <Divider />
 
-          {/* ── Current Address ── */}
           <div className="px-5 pt-6 pb-5">
             <SectionTitle title="Current Address" />
 
-            {/* Same-as-permanent animated toggle */}
             <label className="flex items-center gap-3 cursor-pointer select-none mb-4">
               <div className="relative shrink-0">
                 <input
@@ -675,7 +638,6 @@ export default function KYCForm() {
 
           <Divider />
 
-          {/* ── Contact Information ── */}
           <div className="px-5 pt-6 pb-5">
             <SectionTitle title="Contact Information" />
             <div className="space-y-4">
@@ -717,7 +679,6 @@ export default function KYCForm() {
 
           <Divider />
 
-          {/* ── Other Information ── */}
           <div className="px-5 pt-6 pb-6">
             <SectionTitle title="Other Information" />
             <div className="space-y-4">
@@ -747,7 +708,6 @@ export default function KYCForm() {
           </div>
 
         </div>
-        {/* ── end form card ── */}
 
         <Btn full size="lg" onClick={handleNext} loading={loading}>
           Review & Continue

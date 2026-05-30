@@ -1,33 +1,20 @@
 import { create } from 'zustand'
 
 const DEFAULT_FORM = {
-  /* Personal */
   full_name: '', dob: '', gender: '', document_type: 'citizenship',
-
-  /* Document */
   id_number: '',
-
-  /* Permanent address (structured) */
   permanent_province: '', permanent_district: '', permanent_municipality: '',
   permanent_ward: '', permanent_tole: '',
-
-  /* Current address */
   current_same_as_permanent: true,
   current_province: '', current_district: '', current_municipality: '',
   current_ward: '', current_tole: '',
-
-  /* Legacy flat address — kept for API backward-compatibility */
   address: '',
-
-  /* Contact */
   phone: '', email: '',
-
-  /* Extended */
   pan: '', alternate_phone: '', occupation: '',
 }
 
 export const useKYCStore = create((set) => ({
-  user: { name: 'Aayush', email: '' },
+  user: { name: '', email: '' },
   setUser: (u) => set({ user: u }),
 
   docFile: null,

@@ -26,6 +26,7 @@ export default function OCRProcessing() {
   const { docFile, docPreviews, setOcrResult, setFormData, formData } = useKYCStore()
   const [stepIdx, setStepIdx] = useState(0)
   const [done, setDone] = useState(false)
+  const [ocrConfidence, setOcrConfidence] = useState(0)
   const MOCK = import.meta.env.VITE_ENABLE_API !== 'true'
 
   useEffect(() => {
@@ -43,6 +44,8 @@ export default function OCRProcessing() {
           ? (await new Promise(r => setTimeout(r, 3200)), MOCK_OCR)
           : await uploadDocument(docFile, 'front')
       } catch { result = MOCK_OCR }
+      const conf = Math.round((result.overall_confidence ?? result.confidence ?? 0.9) * 100)
+      setOcrConfidence(conf)
       setOcrResult({
         ...result,
         confidence: result.overall_confidence ?? result.confidence ?? 0.9,
@@ -68,7 +71,6 @@ export default function OCRProcessing() {
   }, [done])
 
   const pct = done ? 100 : Math.round(((stepIdx + 1) / STEPS.length) * 100)
-  const confidence = 96
   const docPreview = docPreviews?.front || null
 
   return (
@@ -164,12 +166,12 @@ export default function OCRProcessing() {
                   stroke="#60BB46" strokeWidth="5" strokeLinecap="round"
                   strokeDasharray={113}
                   initial={{ strokeDashoffset: 113 }}
-                  animate={{ strokeDashoffset: 113 - (113 * confidence / 100) }}
+                  animate={{ strokeDashoffset: 113 - (113 * ocrConfidence / 100) }}
                   transition={{ duration: 1, ease: 'easeOut' }}
                 />
               </svg>
               <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-xs font-black text-primary">{confidence}%</span>
+                <span className="text-xs font-black text-primary">{ocrConfidence}%</span>
               </div>
             </div>
             <div>
