@@ -10,7 +10,7 @@ class KYCSubmitRequest(BaseModel):
     id_number: str
     address: str
     phone: str
-    email: EmailStr
+    email: Optional[EmailStr] = None
     document_type: Literal["citizenship", "passport", "license", "voter_id"]
 
 

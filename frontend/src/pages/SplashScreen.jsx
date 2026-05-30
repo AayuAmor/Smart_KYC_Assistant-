@@ -12,35 +12,6 @@ export default function SplashScreen() {
       className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden"
       style={{ background: 'linear-gradient(145deg, #60BB46 0%, #4e9b39 55%, #3A8A28 100%)' }}
     >
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div style={{
-          position: 'absolute', top: '50%', left: '50%',
-          transform: 'translate(-50%, -50%)',
-          width: 480, height: 480,
-          border: '1px solid rgba(255,255,255,0.07)',
-          borderRadius: '50%',
-        }} />
-        <div style={{
-          position: 'absolute', top: '50%', left: '50%',
-          transform: 'translate(-50%, -50%)',
-          width: 340, height: 340,
-          border: '1px solid rgba(255,255,255,0.10)',
-          borderRadius: '50%',
-        }} />
-        <div style={{
-          position: 'absolute', top: '50%', left: '50%',
-          transform: 'translate(-50%, -50%)',
-          width: 220, height: 220,
-          border: '1px solid rgba(255,255,255,0.13)',
-          borderRadius: '50%',
-        }} />
-        <div style={{
-          position: 'absolute', top: '-10%', right: '-5%',
-          width: 300, height: 300,
-          background: 'radial-gradient(circle, rgba(255,255,255,0.12) 0%, transparent 70%)',
-        }} />
-      </div>
-
       <motion.div
         initial={{ opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}
@@ -49,7 +20,6 @@ export default function SplashScreen() {
       >
         <div
           className="w-24 h-24 bg-white rounded-3xl flex items-center justify-center mx-auto mb-7 shadow-2xl"
-          style={{ animation: 'pulse-g 2.4s ease-in-out infinite' }}
         >
           <ShieldCheck className="w-12 h-12 text-primary" strokeWidth={2} />
         </div>
