@@ -1,65 +1,110 @@
-import numpy as np
-import pytesseract
+import base64
+import json
+from pathlib import Path
 from loguru import logger
+from openai import OpenAI
 from app.core.config import settings
 
-try:
-    import easyocr as _easyocr_mod
-    _EASYOCR_AVAILABLE = True
-except ImportError:
-    _easyocr_mod = None
-    _EASYOCR_AVAILABLE = False
-    logger.warning("easyocr not installed — using Tesseract only. Run: pip install easyocr==1.7.2")
+PROVINCES = [
+    "Koshi Province", "Madhesh Province", "Bagmati Province",
+    "Gandaki Province", "Lumbini Province", "Karnali Province",
+    "Sudurpashchim Province",
+]
+
+DISTRICTS = [
+    "Bhojpur","Dhankuta","Ilam","Jhapa","Khotang","Morang","Okhaldhunga",
+    "Panchthar","Sankhuwasabha","Solukhumbu","Sunsari","Taplejung","Tehrathum","Udayapur",
+    "Bara","Dhanusha","Mahottari","Parsa","Rautahat","Saptari","Sarlahi","Siraha",
+    "Bhaktapur","Chitwan","Dhading","Dolakha","Kathmandu","Kavrepalanchok","Lalitpur",
+    "Makwanpur","Nuwakot","Ramechhap","Rasuwa","Sindhuli","Sindhupalchok",
+    "Baglung","Gorkha","Kaski","Lamjung","Manang","Mustang","Myagdi","Nawalpur",
+    "Parbat","Syangja","Tanahun",
+    "Arghakhanchi","Banke","Bardiya","Dang","Gulmi","Kapilvastu","Nawalparasi West",
+    "Palpa","Pyuthan","Rolpa","Rukum East","Rupandehi",
+    "Dailekh","Dolpa","Humla","Jajarkot","Jumla","Kalikot","Mugu","Rukum West","Salyan","Surkhet",
+    "Achham","Baitadi","Bajhang","Bajura","Dadeldhura","Darchula","Doti","Kailali","Kanchanpur",
+]
+
+EXTRACTION_PROMPT = f"""You are a KYC document field extraction engine for Nepal.
+Analyze this document image and extract fields into a JSON object.
+
+Return ONLY valid JSON with exactly these keys (use null if not found):
+{{
+  "doc_type": "citizenship" | "passport" | "license" | "voter_id" | "unknown",
+  "full_name": "Full name in English, transliterate if Devanagari",
+  "dob": "YYYY-MM-DD format or null",
+  "id_number": "Document number or null",
+  "permanent_province": "Exact match from list or null",
+  "permanent_district": "Exact match from list or null",
+  "permanent_municipality": "Municipality or Rural Municipality name or null",
+  "permanent_ward": "Ward number as string or null",
+  "permanent_tole": "Tole / street name or null",
+  "issued_district": "District where document was issued or null",
+  "issued_date": "YYYY-MM-DD format or null",
+  "confidence": 0.0 to 1.0
+}}
+
+Rules:
+- For permanent_province use ONLY one of these exact values: {json.dumps(PROVINCES)}
+- For permanent_district use ONLY one of these exact values: {json.dumps(DISTRICTS)}
+- For permanent_municipality include the full suffix: "Municipality", "Metropolitan City", "Sub-Metropolitan City", or "Rural Municipality"
+- For Nepali citizenship: id_number format is XX-XX-XX-XXXXX
+- For passport: id_number is 2 letters + 7 digits
+- Convert all dates to YYYY-MM-DD
+- confidence: 0.95 for clear sharp image, 0.7 for readable, 0.4 for blurry
+- Return ONLY the JSON object, no markdown fences, no explanation
+"""
 
 
 class OCREngine:
     def __init__(self):
-        self._reader = None
-        pytesseract.pytesseract.tesseract_cmd = settings.TESSERACT_CMD
+        self._client = None
 
-    def extract_text(self, image: np.ndarray) -> tuple[str, float]:
-        if _EASYOCR_AVAILABLE:
-            try:
-                text, confidence = self._run_easyocr(image)
-                if confidence >= settings.OCR_CONFIDENCE_THRESHOLD:
-                    logger.info("EasyOCR succeeded confidence={:.2f}", confidence)
-                    return text, confidence
-                logger.warning("EasyOCR low confidence={:.2f}, falling back to Tesseract", confidence)
-            except Exception:
-                logger.exception("EasyOCR failed, falling back to Tesseract")
-        return self._run_tesseract(image)
-
-    def _run_easyocr(self, image: np.ndarray) -> tuple[str, float]:
-        reader = self._get_reader()
-        results = reader.readtext(image, detail=1, paragraph=False)
-        if not results:
-            return "", 0.0
-        texts = [r[1] for r in results]
-        scores = [r[2] for r in results]
-        confidence = float(np.mean(scores)) if scores else 0.0
-        return " ".join(texts), confidence
-
-    def _run_tesseract(self, image: np.ndarray) -> tuple[str, float]:
+    def extract_fields_from_image(self, image_path: str) -> dict:
+        client = self._get_client()
+        image_data = self._encode_image(image_path)
+        ext = Path(image_path).suffix.lower().lstrip(".")
+        media_type = "image/jpeg" if ext in ("jpg", "jpeg") else f"image/{ext}"
         try:
-            data = pytesseract.image_to_data(
-                image,
-                lang="eng+nep",
-                config="--oem 3 --psm 6",
-                output_type=pytesseract.Output.DICT,
+            response = client.chat.completions.create(
+                model=settings.OPENAI_MODEL,
+                max_tokens=600,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:{media_type};base64,{image_data}",
+                                    "detail": "high",
+                                },
+                            },
+                            {"type": "text", "text": EXTRACTION_PROMPT},
+                        ],
+                    }
+                ],
             )
-            texts, confs = [], []
-            for i, conf in enumerate(data["conf"]):
-                if int(conf) > 0:
-                    texts.append(data["text"][i])
-                    confs.append(int(conf) / 100.0)
-            confidence = float(np.mean(confs)) if confs else 0.0
-            return " ".join(t for t in texts if t.strip()), confidence
+            raw = response.choices[0].message.content.strip()
+            raw = raw.replace("```json", "").replace("```", "").strip()
+            result = json.loads(raw)
+            logger.info(
+                "GPT-4o extraction doc_type={} confidence={}",
+                result.get("doc_type"), result.get("confidence"),
+            )
+            return result
+        except json.JSONDecodeError as e:
+            logger.error("GPT-4o returned invalid JSON: {}", e)
+            return {"doc_type": "unknown", "confidence": 0.0}
         except Exception:
-            logger.exception("Tesseract failed")
-            return "", 0.0
+            logger.exception("GPT-4o Vision extraction failed")
+            return {"doc_type": "unknown", "confidence": 0.0}
 
-    def _get_reader(self):
-        if self._reader is None:
-            self._reader = _easyocr_mod.Reader(["en", "ne"], gpu=False, verbose=False)
-            logger.info("EasyOCR reader initialised")
-        return self._reader
+    def _encode_image(self, image_path: str) -> str:
+        with open(image_path, "rb") as f:
+            return base64.b64encode(f.read()).decode("utf-8")
+
+    def _get_client(self) -> OpenAI:
+        if self._client is None:
+            self._client = OpenAI(api_key=settings.OPENAI_API_KEY)
+        return self._client
