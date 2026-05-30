@@ -55,7 +55,7 @@ function FormField({ label, error, conf, showConf, children }) {
 
 export default function KYCForm() {
   const nav = useNavigate()
-  const { formData, setFormData, ocrResult, setKycId, setKycStatus } = useKYCStore()
+  const { formData, setFormData, ocrResult, setKycId, setKycStatus, docPreview, docPreviews } = useKYCStore()
   const [errors,  setErrors]  = useState({})
   const [loading, setLoading] = useState(false)
   const [step,    setStep]    = useState('form')
@@ -133,37 +133,158 @@ export default function KYCForm() {
         onBack={() => setStep('form')}
         title="Review Details"
       />
-      <div className="max-w-[480px] mx-auto px-4 py-5 space-y-4">
-        <p className="text-sm text-text-gray">Confirm your details before face verification.</p>
 
-        <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-sm">
-          {[
-            ['Full Name',     formData.full_name],
-            ['Date of Birth', formData.dob],
-            ['ID Number',     formData.id_number],
-            ['Address',       formData.address],
-            ['Phone',         formData.phone],
-            ['Email',         formData.email],
-          ].map(([label, value], i) => (
-            <div
-              key={label}
-              className="flex justify-between items-center px-4 py-3.5"
-              style={{ borderBottom: i < 5 ? '1px solid #F3F4F6' : 'none', background: i % 2 ? '#FAFAFA' : '#fff' }}
-            >
-              <span className="text-xs font-semibold text-text-gray">{label}</span>
-              <span className="text-sm font-bold text-text-dark text-right max-w-[58%] truncate">
-                {value || '—'}
+      <div className="max-w-[520px] mx-auto px-4 py-5 space-y-4">
+
+        <p className="text-sm text-text-gray font-medium">
+          Compare your document with the extracted fields before proceeding.
+        </p>
+
+        {(docPreviews?.front || docPreview) && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden"
+          >
+            <div className="px-4 pt-4 pb-2 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div
+                  className="w-7 h-7 rounded-lg flex items-center justify-center"
+                  style={{ background: 'linear-gradient(135deg, #60BB46, #3A8A28)' }}
+                >
+                  <ShieldCheck size={14} color="#fff" strokeWidth={2.5} />
+                </div>
+                <p className="text-sm font-bold text-text-dark">Document Preview</p>
+              </div>
+              <span
+                className="text-[10px] font-bold px-2.5 py-1 rounded-full"
+                style={{ background: '#EBF7E6', color: '#3A8A28' }}
+              >
+                ✓ Verified
               </span>
             </div>
-          ))}
-        </div>
 
-        <div className="flex items-start gap-3 bg-primary/5 border border-primary/15 rounded-2xl px-4 py-3.5">
-          <AlertTriangle size={15} className="text-primary mt-0.5 shrink-0" />
-          <p className="text-xs text-primary-dark leading-relaxed font-medium">
-            Confirm all details match your document. Next you'll complete a quick live face verification.
+            <div className={[
+              'grid gap-3 px-4 pb-4',
+              docPreviews?.back ? 'grid-cols-2' : 'grid-cols-1',
+            ].join(' ')}>
+              {(docPreviews?.front || docPreview) && (
+                <div className="space-y-1.5">
+                  {docPreviews?.back && (
+                    <p className="text-[10px] font-bold text-text-gray uppercase tracking-widest">Front</p>
+                  )}
+                  <div className="rounded-xl overflow-hidden border border-slate-100 bg-slate-50">
+                    <img
+                      src={docPreviews?.front || docPreview}
+                      alt="Document front"
+                      className="w-full object-cover"
+                      style={{ maxHeight: 160 }}
+                    />
+                  </div>
+                </div>
+              )}
+              {docPreviews?.back && (
+                <div className="space-y-1.5">
+                  <p className="text-[10px] font-bold text-text-gray uppercase tracking-widest">Back</p>
+                  <div className="rounded-xl overflow-hidden border border-slate-100 bg-slate-50">
+                    <img
+                      src={docPreviews.back}
+                      alt="Document back"
+                      className="w-full object-cover"
+                      style={{ maxHeight: 160 }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.08 }}
+          className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden"
+        >
+          <div className="px-4 pt-4 pb-3 flex items-center justify-between border-b border-slate-50">
+            <div className="flex items-center gap-2">
+              <div
+                className="w-7 h-7 rounded-lg flex items-center justify-center"
+                style={{ background: '#EFF6FF' }}
+              >
+                <Sparkles size={14} color="#3B82F6" strokeWidth={2.2} />
+              </div>
+              <p className="text-sm font-bold text-text-dark">Extracted Fields</p>
+            </div>
+            {ocrResult && (
+              <span
+                className="text-[10px] font-bold px-2.5 py-1 rounded-full"
+                style={{ background: '#EFF6FF', color: '#1D4ED8' }}
+              >
+                {Math.round((ocrResult.confidence || 0.9) * 100)}% confidence
+              </span>
+            )}
+          </div>
+
+          <div>
+            {[
+              ['Full Name',     formData.full_name,  CONFIDENCE.full_name],
+              ['Date of Birth', formData.dob,         CONFIDENCE.dob],
+              ['ID Number',     formData.id_number,   CONFIDENCE.id_number],
+              ['Address',       formData.address,     CONFIDENCE.address],
+              ['Phone',         formData.phone,       null],
+              ['Email',         formData.email,       null],
+            ].map(([label, value, conf], i, arr) => (
+              <div
+                key={label}
+                className="flex items-center justify-between px-4 py-3"
+                style={{
+                  borderBottom: i < arr.length - 1 ? '1px solid #F9FAFB' : 'none',
+                  background: i % 2 === 0 ? '#fff' : '#FAFAFA',
+                }}
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-xs font-semibold text-text-gray shrink-0">{label}</span>
+                  {conf && ocrResult && (
+                    <span
+                      className="text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0"
+                      style={{
+                        background: conf >= 90 ? '#EBF7E6' : '#FFF7ED',
+                        color: conf >= 90 ? '#3A8A28' : '#C2410C',
+                      }}
+                    >
+                      {conf >= 90 ? '✓' : '⚠'} {conf}%
+                    </span>
+                  )}
+                </div>
+                <span className="text-sm font-bold text-text-dark text-right max-w-[55%] truncate ml-3">
+                  {value || '—'}
+                </span>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.14 }}
+          className="flex items-start gap-3 rounded-2xl px-4 py-3.5"
+          style={{ background: '#FFFBEB', border: '1px solid #FDE68A' }}
+        >
+          <AlertTriangle size={14} className="shrink-0 mt-0.5" style={{ color: '#D97706' }} />
+          <p className="text-xs leading-relaxed font-medium" style={{ color: '#92400E' }}>
+            Details look wrong? Tap{' '}
+            <button
+              onClick={() => setStep('form')}
+              className="underline font-bold"
+              style={{ color: '#D97706' }}
+            >
+              Edit Details
+            </button>
+            {' '}to correct them before proceeding.
           </p>
-        </div>
+        </motion.div>
 
         <Btn full size="lg" onClick={() => nav('/kyc/face-verify')}>
           Confirm & Start Face Verification

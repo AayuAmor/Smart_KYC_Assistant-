@@ -25,7 +25,15 @@ async def setup_db():
 async def client():
     async def override_db():
         async with TestSession() as session:
-            yield session
+            try:
+                yield session
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                raise
+            finally:
+                await session.close()
+
     app.dependency_overrides[get_db] = override_db
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
         yield c
