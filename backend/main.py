@@ -1,9 +1,11 @@
 from contextlib import asynccontextmanager
 from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from loguru import logger
+
 from app.core.config import settings
 from app.core.logging import setup_logging
 from app.core.exceptions import AppException, app_exception_handler, generic_exception_handler

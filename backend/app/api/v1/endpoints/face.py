@@ -1,11 +1,13 @@
 import uuid
+
 from fastapi import APIRouter, Depends, UploadFile, File, Form
 from sqlalchemy.ext.asyncio import AsyncSession
+from loguru import logger
+
 from app.api.deps import get_db
 from app.schemas.face import FaceVerifyResponse
 from app.services.face_service import FaceService
 from app.core.exceptions import AppException
-from loguru import logger
 
 router = APIRouter(prefix="/face", tags=["Face Verification"])
 

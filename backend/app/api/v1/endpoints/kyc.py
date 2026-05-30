@@ -1,11 +1,13 @@
 import uuid
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
+from loguru import logger
+
 from app.api.deps import get_db
 from app.schemas.kyc import KYCSubmitRequest, KYCSubmitResponse, KYCStatusResponse
 from app.services.kyc_service import KYCService, STATUS_STAGES
 from app.core.exceptions import AppException
-from loguru import logger
 
 router = APIRouter(prefix="/kyc", tags=["KYC"])
 
