@@ -145,11 +145,9 @@ function FormField({
   );
 }
 
-const MOCK = false;
-
 export default function KYCForm() {
   const nav = useNavigate();
-  const { formData, setFormData, ocrResult, setKycId, setKycStatus } = useKYCStore();
+  const { formData, setFormData, ocrResult, setKycId, setKycStatus, docPreviews } = useKYCStore();
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState("form");
@@ -167,13 +165,14 @@ export default function KYCForm() {
 
   function scrollToFirstError(errs) {
     const order = [
-      "full_name", "dob", "id_number",
+      "full_name", "dob", "gender", "id_number",
       "permanent_province", "permanent_district", "permanent_municipality",
-      "permanent_ward", "permanent_tole", "phone",
+      "permanent_ward", "permanent_tole", "phone", "occupation",
     ];
     for (const field of order) {
       if (errs[field] && fieldRefs.current[field]) {
         fieldRefs.current[field].scrollIntoView({ behavior: "smooth", block: "center" });
+        fieldRefs.current[field].querySelector("input,select")?.focus();
         break;
       }
     }
@@ -287,42 +286,34 @@ export default function KYCForm() {
         formData.permanent_ward ? `Ward ${formData.permanent_ward}` : "",
         formData.permanent_district,
         formData.permanent_province,
-      ]
-        .filter(Boolean)
-        .join(", ");
+      ].filter(Boolean).join(", ");
 
       const payload = {
-        ...formData,
-        address: permAddr,
-        ...(formData.current_same_as_permanent
-          ? {
-              current_province: formData.permanent_province,
-              current_district: formData.permanent_district,
-              current_municipality: formData.permanent_municipality,
-              current_ward: formData.permanent_ward,
-              current_tole: formData.permanent_tole,
-            }
-          : {}),
+        full_name:     formData.full_name,
+        dob:           formData.dob,
+        id_number:     formData.id_number,
+        address:       permAddr,
+        phone:         formData.phone,
+        email:         formData.email || null,
+        document_type: formData.document_type || "citizenship",
       };
 
+      const MOCK = import.meta.env.VITE_ENABLE_API !== "true";
       if (MOCK) {
-        const data = { kyc_id: "KYC-" + Date.now(), status: "submitted" };
-        setKycId(data.kyc_id);
+        await new Promise((r) => setTimeout(r, 1200));
+        setKycId("KYC-" + Date.now());
         setKycStatus("submitted");
         setStep("done");
-      } else {
-        const data = await submitKYC(payload);
-        setKycId(data.kyc_id);
-        nav("/kyc/face-verify");
+        return;
       }
+
+      const data = await submitKYC(payload);
+      setKycId(data.kyc_id);
+      nav("/kyc/face-verify");
     } catch (error) {
-      console.error(error);
       setErrors((e) => ({
         ...e,
-        submit:
-          typeof error === "string"
-            ? error
-            : error?.message || "KYC submission failed",
+        submit: typeof error === "string" ? error : error?.message || "Submission failed. Please try again.",
       }));
     } finally {
       setLoading(false);
@@ -393,9 +384,7 @@ export default function KYCForm() {
       formData.permanent_ward && `Ward ${formData.permanent_ward}`,
       formData.permanent_district,
       formData.permanent_province,
-    ]
-      .filter(Boolean)
-      .join(", ");
+    ].filter(Boolean).join(", ");
 
     const currAddr = sameAsPerm
       ? permAddr
@@ -405,22 +394,23 @@ export default function KYCForm() {
           formData.current_ward && `Ward ${formData.current_ward}`,
           formData.current_district,
           formData.current_province,
-        ]
-          .filter(Boolean)
-          .join(", ");
+        ].filter(Boolean).join(", ");
 
     const rows = [
-      ["Full Name", formData.full_name],
-      ["Date of Birth", formData.dob],
-      ["Gender", formData.gender || "—"],
-      ["Citizenship No.", formData.id_number],
+      ["Full Name",         formData.full_name],
+      ["Date of Birth",     formData.dob],
+      ["Gender",            formData.gender || "—"],
+      ["Citizenship No.",   formData.id_number],
       ["Permanent Address", permAddr || "—"],
-      ["Current Address", sameAsPerm ? "Same as Permanent" : currAddr || "—"],
-      ["Phone", formData.phone || "—"],
-      ["Email", formData.email || "—"],
-      ["Occupation", formData.occupation || "—"],
-      ["PAN", formData.pan || "—"],
+      ["Current Address",   sameAsPerm ? "Same as Permanent" : currAddr || "—"],
+      ["Phone",             formData.phone || "—"],
+      ["Email",             formData.email || "—"],
+      ["Occupation",        formData.occupation || "—"],
+      ["PAN",               formData.pan || "—"],
     ];
+
+    const hasFront = docPreviews?.front;
+    const hasBack  = docPreviews?.back;
 
     return (
       <div className="page-root pb-8">
@@ -430,47 +420,108 @@ export default function KYCForm() {
           onBack={() => setStep("form")}
           title="Review Details"
         />
-        <div className="max-w-[480px] mx-auto px-4 py-5 space-y-4">
-          <p className="text-sm text-text-gray">
+
+        <div className="max-w-[900px] mx-auto px-4 py-5">
+          <p className="text-sm text-text-gray mb-4">
             Confirm everything is correct before face verification.
           </p>
 
-          <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-[0_2px_12px_rgba(16,24,40,0.06)]">
-            {rows.map(([label, value], i) => (
-              <div
-                key={label}
-                className="flex justify-between items-start gap-4 px-5 py-3.5"
-                style={{
-                  borderBottom:
-                    i < rows.length - 1 ? "1px solid #F3F4F6" : "none",
-                  background: i % 2 ? "#FAFAFA" : "#fff",
-                }}
-              >
-                <span className="text-xs font-semibold text-text-gray shrink-0">
-                  {label}
-                </span>
-                <span className="text-sm font-bold text-text-dark text-right break-words leading-snug max-w-[60%]">
-                  {value || "—"}
-                </span>
+          <div className="flex flex-col lg:flex-row gap-4 items-start">
+
+            {(hasFront || hasBack) && (
+              <div className="w-full lg:w-[280px] lg:sticky lg:top-4 shrink-0 space-y-3">
+                <p className="text-[11px] font-bold text-text-gray uppercase tracking-widest px-0.5">
+                  Uploaded Document
+                </p>
+
+                {hasFront && (
+                  <div className="space-y-1.5">
+                    {hasBack && (
+                      <p className="text-[10px] font-bold text-text-gray uppercase tracking-widest px-0.5">
+                        Front
+                      </p>
+                    )}
+                    <div className="rounded-2xl overflow-hidden border border-slate-100 shadow-sm bg-slate-50">
+                      <img
+                        src={docPreviews.front}
+                        alt="Document front"
+                        className="w-full object-cover"
+                        style={{ maxHeight: 200 }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {hasBack && (
+                  <div className="space-y-1.5">
+                    <p className="text-[10px] font-bold text-text-gray uppercase tracking-widest px-0.5">
+                      Back
+                    </p>
+                    <div className="rounded-2xl overflow-hidden border border-slate-100 shadow-sm bg-slate-50">
+                      <img
+                        src={docPreviews.back}
+                        alt="Document back"
+                        className="w-full object-cover"
+                        style={{ maxHeight: 200 }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div
+                  className="flex items-center gap-2 px-3 py-2.5 rounded-xl"
+                  style={{ background: "#EBF7E6", border: "1px solid #C6EBB0" }}
+                >
+                  <CheckCircle2 size={13} style={{ color: "#3A8A28" }} className="shrink-0" />
+                  <p className="text-[11px] font-semibold" style={{ color: "#3A8A28" }}>
+                    Compare fields with document
+                  </p>
+                </div>
               </div>
-            ))}
-          </div>
+            )}
 
-          <div className="flex items-start gap-3 bg-amber-50 border border-amber-100 rounded-2xl px-4 py-3.5">
-            <AlertTriangle
-              size={15}
-              className="text-amber-500 mt-0.5 shrink-0"
-            />
-            <p className="text-xs text-amber-800 leading-relaxed font-medium">
-              Ensure all details match your official document. Incorrect
-              information may delay verification.
-            </p>
-          </div>
+            <div className="flex-1 min-w-0 space-y-4">
+              <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-[0_2px_12px_rgba(16,24,40,0.06)]">
+                {rows.map(([label, value], i) => (
+                  <div
+                    key={label}
+                    className="flex justify-between items-start gap-4 px-5 py-3.5"
+                    style={{
+                      borderBottom: i < rows.length - 1 ? "1px solid #F3F4F6" : "none",
+                      background: i % 2 ? "#FAFAFA" : "#fff",
+                    }}
+                  >
+                    <span className="text-xs font-semibold text-text-gray shrink-0">
+                      {label}
+                    </span>
+                    <span className="text-sm font-bold text-text-dark text-right break-words leading-snug max-w-[60%]">
+                      {value || "—"}
+                    </span>
+                  </div>
+                ))}
+              </div>
 
-          <Btn full size="lg" loading={loading} onClick={handleSubmit}>
-            Confirm & Start Face Verification
-            <ArrowRight size={16} strokeWidth={2.5} />
-          </Btn>
+              {errors.submit && (
+                <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-2xl px-4 py-3.5">
+                  <AlertTriangle size={15} className="text-error shrink-0 mt-0.5" />
+                  <p className="text-xs text-error font-medium leading-relaxed">{errors.submit}</p>
+                </div>
+              )}
+
+              <div className="flex items-start gap-3 bg-amber-50 border border-amber-100 rounded-2xl px-4 py-3.5">
+                <AlertTriangle size={15} className="text-amber-500 mt-0.5 shrink-0" />
+                <p className="text-xs text-amber-800 leading-relaxed font-medium">
+                  Ensure all details match your official document. Incorrect
+                  information may delay verification.
+                </p>
+              </div>
+
+              <Btn full size="lg" loading={loading} onClick={handleSubmit}>
+                Confirm & Start Face Verification
+                <ArrowRight size={16} strokeWidth={2.5} />
+              </Btn>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -548,18 +599,20 @@ export default function KYCForm() {
                   </FormField>
                 </div>
 
-                <FormField label="Gender">
-                  <select
-                    value={formData.gender || ""}
-                    onChange={(e) => handle("gender", e.target.value)}
-                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm text-text-dark outline-none transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-primary/15 hover:border-slate-300"
-                  >
-                    <option value="">Select</option>
-                    <option value="male">Male</option>
-                    <option value="female">Female</option>
-                    <option value="other">Other</option>
-                  </select>
-                </FormField>
+                <div ref={(el) => (fieldRefs.current["gender"] = el)}>
+                  <FormField label="Gender">
+                    <select
+                      value={formData.gender || ""}
+                      onChange={(e) => handle("gender", e.target.value)}
+                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm text-text-dark outline-none transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-primary/15 hover:border-slate-300"
+                    >
+                      <option value="">Select</option>
+                      <option value="male">Male</option>
+                      <option value="female">Female</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </FormField>
+                </div>
               </div>
 
               <div ref={(el) => (fieldRefs.current["id_number"] = el)}>
@@ -836,6 +889,8 @@ export default function KYCForm() {
                         "focus:ring-2 focus:ring-primary/15",
                         errors.phone
                           ? "border-error bg-red-50/30 focus:border-error"
+                          : needsFill?.has("phone")
+                          ? "border-amber-400 bg-amber-50/40 focus:border-amber-500 focus:ring-amber-100"
                           : "border-slate-200 focus:border-primary hover:border-slate-300",
                       ].join(" ")}
                     />
@@ -860,15 +915,17 @@ export default function KYCForm() {
           <div className="px-5 pt-6 pb-6">
             <SectionTitle title="Other Information" />
             <div className="space-y-4">
-              <SearchableDropdown
-                label="Occupation"
-                value={formData.occupation}
-                options={OCCUPATIONS}
-                onChange={(v) => handle("occupation", v)}
-                placeholder="Search or select occupation"
-                searchPlaceholder="e.g. Teacher, Engineer..."
-                error={errors.occupation}
-              />
+              <div ref={(el) => (fieldRefs.current["occupation"] = el)}>
+                <SearchableDropdown
+                  label="Occupation"
+                  value={formData.occupation}
+                  options={OCCUPATIONS}
+                  onChange={(v) => handle("occupation", v)}
+                  placeholder="Search or select occupation"
+                  searchPlaceholder="e.g. Teacher, Engineer..."
+                  error={errors.occupation}
+                />
+              </div>
 
               <FormField label="PAN Number" error={errors.pan} optional>
                 <input

@@ -49,7 +49,7 @@ Rules:
 - id_number for citizenship: XX-XX-XX-XXXXX
 - id_number for passport: 2 letters + 7 digits
 - All dates YYYY-MM-DD
-- gender: read from the document. Nepali citizenship cards say "लिङ्ग" — पुरुष means Male, महिला means Female. Return exactly "Male", "Female", or "Other".
+- gender: The back of Nepali citizenship cards has "Sex: Male" or "Sex: Female" in English. Read it directly. Also check for "लिङ्ग: पुरुष" (Male) or "लिङ्ग: महिला" (Female) on the front. Return exactly "Male" or "Female" or null.
 - confidence: 0.95 clear, 0.70 readable, 0.40 blurry
 - Return ONLY the JSON object, no markdown, no explanation
 """
@@ -85,7 +85,7 @@ Rules:
 - permanent_district must be one of: {json.dumps(DISTRICTS)}
 - id_number for citizenship: XX-XX-XX-XXXXX
 - All dates YYYY-MM-DD
-- gender: read from the document. Nepali citizenship cards say "लिङ्ग" — पुरुष means Male, महिला means Female. Return exactly "Male", "Female", or "Other".
+- gender: The back of Nepali citizenship cards has "Sex: Male" or "Sex: Female" in English. Read it directly. Also check for "लिङ्ग: पुरुष" (Male) or "लिङ्ग: महिला" (Female) on the front. Return exactly "Male" or "Female" or null.
 - confidence: 0.95 clear, 0.70 readable, 0.40 blurry
 - Return ONLY the JSON object, no markdown, no explanation
 """

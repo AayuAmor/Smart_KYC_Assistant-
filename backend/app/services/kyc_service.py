@@ -25,7 +25,7 @@ class KYCService:
             id_number=payload.id_number,
             address=payload.address,
             phone=payload.phone,
-            email=payload.email,
+            email=payload.email or "",
             document_type=payload.document_type,
             status="submitted",
         )
