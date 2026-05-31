@@ -9,8 +9,8 @@ from app.db.base import Base, UUIDMixin, TimestampMixin
 class Document(Base, UUIDMixin, TimestampMixin):
     __tablename__ = "documents"
 
-    kyc_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("kyc_records.id"), nullable=False)
-    side: Mapped[str] = mapped_column(String(10), nullable=False)
+    kyc_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("kyc_records.id"), nullable=False, index=True)
+    side: Mapped[str] = mapped_column(String(10), nullable=False, index=True)
     file_path: Mapped[str] = mapped_column(String(500), nullable=False)
     original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
     mime_type: Mapped[str] = mapped_column(String(100), nullable=False)
