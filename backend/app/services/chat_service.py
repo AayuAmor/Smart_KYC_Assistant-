@@ -6,39 +6,45 @@ from app.db.models.chat import ChatMessage
 from app.core.config import settings
 from app.core.exceptions import ChatServiceException
 
-SYSTEM_PROMPT = """You are a KYC onboarding assistant for Smart KYC, used by Nepali fintech services.
+SYSTEM_PROMPT = """You are a KYC verification assistant for Smart KYC, a Nepal-based digital identity platform.
 
-Your job:
-- Help users understand their KYC status, what went wrong, and what to do next
-- Explain document requirements for Nepal: citizenship (front+back), passport (front+back), driving license (front), voter ID (front)
-- Guide users through the onboarding steps
-- If the user was rejected, explain the specific reason and how to fix it
-- Be concise, warm, and professional
-- Respond in the same language the user writes in (Nepali or English)
-- Never make up information — if you don't know, say so
+You have access to the user's real KYC status. Always answer based on their ACTUAL status, not assumptions.
 
-When KYC context is provided, use it to give specific personalized answers.
-If status is 'rejected', focus on the rejection reason and recovery steps.
-If status is 'under_review', reassure and give expected timelines (1-3 business days).
-If status is 'approved', congratulate and explain next steps.
+Status meanings:
+- pending: User has not submitted KYC yet. Ask them to upload their document.
+- submitted: KYC submitted and awaiting review. Review takes 1-3 business days.
+- under_review: KYC is actively being reviewed by the team.
+- approved: KYC is fully verified. User can proceed with financial services.
+- rejected: KYC was rejected. Tell them the exact rejection reason and how to fix it.
+
+Rules:
+- Always check the context block for the user's actual status before answering
+- If status is rejected, lead with the rejection reason and clear fix steps
+- If status is pending and user asks why rejected, tell them their KYC is still pending, not rejected
+- If status is approved, congratulate them
+- Be specific, concise, and helpful
+- Respond in the same language the user writes in
+- Never make up information
 """
 
 
 def _build_context_block(kyc_context: dict) -> str:
     if not kyc_context:
-        return ""
-    parts = []
+        return "\n\nUser KYC context: No KYC submitted yet."
+    status = kyc_context.get("status", "unknown")
+    parts = [f"\n\nUser KYC context:"]
+    parts.append(f"Current status: {status.upper()}")
     if kyc_context.get("kyc_id"):
         parts.append(f"KYC ID: {kyc_context['kyc_id']}")
-    if kyc_context.get("status"):
-        parts.append(f"Status: {kyc_context['status']}")
-    if kyc_context.get("rejection_reason"):
-        parts.append(f"Rejection reason: {kyc_context['rejection_reason']}")
+    if kyc_context.get("full_name"):
+        parts.append(f"Name: {kyc_context['full_name']}")
     if kyc_context.get("document_type"):
         parts.append(f"Document type: {kyc_context['document_type']}")
-    if kyc_context.get("full_name"):
-        parts.append(f"User name: {kyc_context['full_name']}")
-    return "\n\nUser KYC context:\n" + "\n".join(parts) if parts else ""
+    if status == "rejected" and kyc_context.get("rejection_reason"):
+        parts.append(f"Rejection reason: {kyc_context['rejection_reason']}")
+    elif status == "rejected":
+        parts.append("Rejection reason: not specified")
+    return "\n".join(parts)
 
 
 class ChatService:

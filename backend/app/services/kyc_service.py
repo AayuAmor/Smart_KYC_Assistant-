@@ -51,3 +51,14 @@ class KYCService:
         await self.db.refresh(record)
         logger.info("KYC {} status updated to {}", kyc_id, status)
         return record
+
+    async def auto_progress(self, kyc_id: uuid.UUID) -> None:
+        import asyncio
+        await asyncio.sleep(30)
+        try:
+            record = await self.get_kyc(kyc_id)
+            if record.status == "submitted":
+                await self.update_status(kyc_id, "under_review")
+                logger.info("KYC {} auto-progressed to under_review", kyc_id)
+        except Exception:
+            logger.exception("auto_progress failed for kyc_id={}", kyc_id)
