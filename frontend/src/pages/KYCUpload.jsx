@@ -44,9 +44,18 @@ const DOC_TYPES = [
   },
 ];
 
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result)
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+}
+
 export default function KYCUpload() {
   const nav = useNavigate();
-  const { docFile, setDocFile, formData, setFormData } = useKYCStore();
+  const { docFile, setDocFile, formData, setFormData, addDocumentHistory } = useKYCStore();
   const [docType, setDocType] = useState("citizenship");
   const [previews, setPreviews] = useState({ front: null, back: null });
   const [draggingSide, setDraggingSide] = useState(null);
@@ -55,10 +64,10 @@ export default function KYCUpload() {
 
   const currentDocType = DOC_TYPES.find((d) => d.id === docType);
 
-  function handleFile(file, side) {
+  async function handleFile(file, side) {
     if (!file) return;
-    const url = URL.createObjectURL(file);
-    const updatedPreviews = { ...previews, [side]: url };
+    const base64 = await fileToBase64(file)
+    const updatedPreviews = { ...previews, [side]: base64 };
     const nextFiles = { ...(docFile || {}), [side]: file };
     setPreviews(updatedPreviews);
     setFormData({ ...formData, document_type: docType });
@@ -245,7 +254,19 @@ export default function KYCUpload() {
           full
           size="lg"
           disabled={!allSidesUploaded}
-          onClick={() => nav("/kyc/processing")}
+          onClick={() => {
+            const DOC_LABELS = { citizenship: 'Citizenship', license: 'Driving License', passport: 'Passport', voter_id: 'Voter ID' }
+            addDocumentHistory({
+              id: Date.now().toString(),
+              docType: formData.document_type || 'citizenship',
+              docLabel: DOC_LABELS[formData.document_type] || 'Document',
+              previews: { ...previews },
+              uploadedAt: new Date().toISOString(),
+              status: 'uploaded',
+              kycId: null,
+            })
+            nav('/kyc/processing')
+          }}
           className="shadow-sm shadow-primary/20"
         >
           Extract with AI

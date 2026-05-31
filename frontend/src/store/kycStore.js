@@ -1,6 +1,16 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
+const DEFAULT_HISTORY_ENTRY = {
+  id: '',
+  docType: '',
+  docLabel: '',
+  previews: {},
+  uploadedAt: '',
+  status: 'uploaded',
+  kycId: null,
+}
+
 const DEFAULT_FORM = {
   full_name: '',
   dob: '',
@@ -36,6 +46,12 @@ export const useKYCStore = create(
       docPreviews: {},
       setDocFile: (f, previews) => set({ docFile: f, docPreviews: previews }),
 
+      documentHistory: [],
+      addDocumentHistory: (entry) => set(state => ({
+        documentHistory: [entry, ...state.documentHistory].slice(0, 10),
+      })),
+      clearDocumentHistory: () => set({ documentHistory: [] }),
+
       ocrResult: null,
       setOcrResult: (r) => set({ ocrResult: r }),
 
@@ -66,6 +82,8 @@ export const useKYCStore = create(
         rejectionReason: state.rejectionReason,
         formData:        state.formData,
         ocrResult:       state.ocrResult,
+        documentHistory: state.documentHistory,
+        docPreviews:     state.docPreviews,
       }),
     }
   )
