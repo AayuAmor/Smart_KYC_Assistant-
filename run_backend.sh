@@ -2,51 +2,40 @@
 set -e
 
 BACKEND_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/backend" && pwd)"
-VENV_DIR="$BACKEND_DIR/.venv"
+VENV="$BACKEND_DIR/.venv"
 
 cd "$BACKEND_DIR"
 
 # ── Virtual environment ───────────────────────────────────────────────────────
-if [ ! -f "$VENV_DIR/bin/activate" ]; then
-  echo "[error] No virtual environment found at $VENV_DIR"
-  echo "        Create one with:"
-  echo "          cd backend && python3 -m venv .venv && source .venv/bin/activate"
-  exit 1
+if ! "$VENV/bin/python" -m pip --version &>/dev/null 2>&1; then
+  echo "[setup] Creating virtual environment..."
+  rm -rf "$VENV"
+  python3 -m venv "$VENV"
 fi
 
-source "$VENV_DIR/bin/activate"
-
-# ── Dependencies (opt-in) ─────────────────────────────────────────────────────
-if [ "${INSTALL_DEPS:-false}" = "true" ]; then
-  echo "[setup] Installing/updating dependencies..."
-  pip install -q -r requirements.txt
-fi
+# ── Dependencies ──────────────────────────────────────────────────────────────
+echo "[setup] Installing dependencies..."
+"$VENV/bin/pip" install -q --upgrade pip
+"$VENV/bin/pip" install -q -r requirements.txt
 
 # ── .env check ────────────────────────────────────────────────────────────────
 if [ ! -f ".env" ]; then
-  echo "[error] No .env file found in $BACKEND_DIR"
-  echo "        Copy .env.example and fill in the values:"
-  echo "          cp backend/.env.example backend/.env"
-  exit 1
+  cp .env.example .env
+  echo "[setup] .env created from .env.example — edit DATABASE_URL and API keys, then re-run."
+  exit 0
 fi
 
 # ── Migrations ────────────────────────────────────────────────────────────────
-echo "[db] Running Alembic migrations..."
-alembic upgrade head
+echo "[db] Running migrations..."
+"$VENV/bin/alembic" upgrade head
 
 # ── Server ────────────────────────────────────────────────────────────────────
 HOST="${HOST:-0.0.0.0}"
 PORT="${PORT:-8000}"
-RELOAD="${RELOAD:-true}"
 
 echo ""
-echo "  Smart KYC Backend"
-echo "  http://$HOST:$PORT"
-echo "  docs → http://localhost:$PORT/docs"
+echo "  Smart KYC Backend → http://localhost:$PORT"
+echo "  Docs              → http://localhost:$PORT/docs"
 echo ""
 
-if [ "$RELOAD" = "true" ]; then
-  uvicorn main:app --host "$HOST" --port "$PORT" --reload
-else
-  uvicorn main:app --host "$HOST" --port "$PORT"
-fi
+exec "$VENV/bin/uvicorn" main:app --host "$HOST" --port "$PORT" --reload

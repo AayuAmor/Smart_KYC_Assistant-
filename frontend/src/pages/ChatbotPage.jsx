@@ -11,7 +11,7 @@ import {
   AlertCircle,
   ChevronRight,
 } from "lucide-react";
-import { sendChatMessage } from "../services/api.js";
+import { sendChatMessage, getKYCStatus } from '../services/api.js'
 import { BottomNav } from "../components/UI.jsx";
 import { useKYCStore } from "../store/kycStore.js";
 
@@ -45,7 +45,7 @@ const statusConfig = {
 
 export default function ChatbotPage() {
   const nav = useNavigate();
-  const { kycId, kycStatus, rejectionReason } = useKYCStore();
+  const { kycId, kycStatus, rejectionReason, setKycStatus } = useKYCStore()
   const [messages, setMessages] = useState([
     {
       role: "bot",
@@ -53,9 +53,10 @@ export default function ChatbotPage() {
     },
   ]);
   const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
-  const bottomRef = useRef();
-  const inputRef = useRef();
+  const [loading, setLoading] = useState(false)
+  const [statusLoading, setStatusLoading] = useState(false)
+  const bottomRef = useRef()
+  const inputRef = useRef()
   const timeoutRef = useRef(null);
   const rejectionShown = useRef(false);
 
@@ -71,6 +72,19 @@ export default function ChatbotPage() {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
+
+  useEffect(() => {
+    if (!kycId) return
+    const MOCK = import.meta.env.VITE_ENABLE_API !== 'true'
+    if (MOCK) return
+    setStatusLoading(true)
+    getKYCStatus(kycId)
+      .then(result => {
+        if (result?.status) setKycStatus(result.status, result.rejection_reason)
+      })
+      .catch(() => {})
+      .finally(() => setStatusLoading(false))
+  }, [kycId])
 
   useEffect(() => {
     if (kycStatus === "rejected" && rejectionReason && !rejectionShown.current) {

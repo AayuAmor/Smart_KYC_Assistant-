@@ -28,3 +28,4 @@ class KYCStatusResponse(BaseModel):
     stage: str
     rejection_reason: Optional[str]
     updated_at: datetime
+    created_at: Optional[datetime] = None
