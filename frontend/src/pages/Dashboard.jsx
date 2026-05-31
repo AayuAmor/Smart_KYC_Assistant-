@@ -19,7 +19,7 @@ const stagger = {
 const quickActions = [
   { icon: MessageSquare, label: 'AI Assistant',   sub: 'Get instant help',        href: '/chat',          bg: '#EFF6FF', color: '#3B82F6' },
   { icon: FileText,      label: 'Auto Fill Data', sub: 'View extracted details',  href: '/kyc/form',      bg: '#F0FDF4', color: '#22C55E' },
-  { icon: Upload,        label: 'Documents',      sub: 'View uploaded docs',      href: '/kyc/upload',    bg: '#FFF7ED', color: '#F59E0B' },
+  { icon: Upload,        label: 'Documents',      sub: 'View uploaded docs',      href: '/documents',     bg: '#FFF7ED', color: '#F59E0B' },
   { icon: History,       label: 'History',        sub: 'KYC submission history',  href: '/kyc/tracking',  bg: '#F5F3FF', color: '#8B5CF6' },
 ]
 
